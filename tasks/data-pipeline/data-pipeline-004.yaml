@@ -1,0 +1,28 @@
+id: data-pipeline-004
+title: 月度修订去重、缺月补齐与安全环比（V2）
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: data_ws, snapshot: data-004}
+agent:
+  system_prompt: |
+    你是资深数据工程师。编写并运行 Python 脚本生成结果；不得修改输入，完成后 done。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 monthly.csv，生成 out/mom.csv：
+  1. 每月按 updated_at 保留最新修订；
+  2. 从最早月到最晚月补齐所有缺失月份，缺失 value 填 0；
+  3. mom=(本月-上月)/上月*100，固定两位小数；首月或上月为 0 时 mom 填 NA；
+  4. 列严格为 month,value,mom；value 输出普通数字，按月份升序。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.mom.columns == ['month', 'value', 'mom']"
+  - type: state_assert
+    expr: "state.outputs.mom.rows == [['2025-01', '100', 'NA'], ['2025-02', '110', '10.00'], ['2025-03', '0', '-100.00'], ['2025-04', '0', 'NA'], ['2025-05', '50', 'NA'], ['2025-06', '75', '50.00']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [write_file, run_python]

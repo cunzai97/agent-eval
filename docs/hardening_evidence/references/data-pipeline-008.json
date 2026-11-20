@@ -1,0 +1,45 @@
+{
+ "note": "仅凭题面推出的参考解：read_file 对 440150 字节的 daily_bars.csv 只返回前 200000 字符（静默截断），所以一切规模类数字都不取自预览，而由 market_bars.py 用 csv 流式读整份文件算出：数据行 10043、按 (symbol,trade_date) 保留最大 rev 去掉 368 条被修订覆盖的行、再丢弃 close 为 ``/`--`/`NA` 的 150 行，得 final_bars 9525 且等于三个 market 的 bars 之和（SHE 3244 / SHH 3149 / SZA 3132），46 个 symbol，138 个 (symbol,market) 组合各自按 trade_date 升序后比末值与首值（文件行序不可信，排序在脚本里做）得 rising 75 / falling 63；两个均价均为固定两位小数的算术平均与 volume 加权均价。脚本还自检 final_bars == 行数差之和且等于 market_bars 的 bars 合计。daily_bars.csv 只读未改。用于证明 data-pipeline-008 可解，不依赖任何模型。",
+ "author": "qoder",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "daily_bars.csv"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "market_bars.py",
+    "content": "#!/usr/bin/env python3\n\"\"\"daily_bars.csv -> out/market_bars.csv + out/reconciliation.csv.\n\nThe input is ~440 KB and any single tool preview of it is truncated, so no\nnumber in either output is estimated from a fragment: this script streams the\nwhole file and derives the row count, the revision volume and the dirty-value\nvolume from every record it contains.\n\nRules, in order:\n  1. de-duplicate (symbol, trade_date), keeping the largest `rev` (a later\n     revision of the same bar supersedes the earlier one);\n  2. on that result only, drop rows whose `close` is not a number\n     (empty, '--', 'NA', ...);\n  3. aggregate per market: plain mean and volume-weighted mean of close;\n  4. per (symbol, market) pair compare the last close with the first one after\n     sorting that pair by trade_date -- the file is *not* date ordered, so the\n     ordering is done here instead of trusting row order.\n\"\"\"\nfrom __future__ import annotations\n\nimport csv\nimport os\nfrom collections import defaultdict\n\nSOURCE = \"daily_bars.csv\"\nOUT_DIR = \"out\"\nINVALID = {\"\", \"--\", \"-\", \"na\", \"n/a\", \"nan\", \"none\", \"null\"}\n\n\ndef to_number(raw):\n    \"\"\"Float, or None when the cell is blank or not a number.\"\"\"\n    if raw is None:\n        return None\n    text = str(raw).strip()\n    if not text or text.lower() in INVALID:\n        return None\n    try:\n        return float(text)\n    except ValueError:\n        return None\n\n\ndef to_int(raw):\n    number = to_number(raw)\n    return None if number is None else int(round(number))\n\n\ndef main():\n    os.makedirs(OUT_DIR, exist_ok=True)\n\n    # -- pass 1: stream the entire file, never a preview --------------------\n    input_data_rows = 0\n    latest = {}                                  # (symbol, date) -> (rev, close, volume, market)\n    with open(SOURCE, newline=\"\", encoding=\"utf-8\") as handle:\n        for row in csv.DictReader(handle):\n            input_data_rows += 1\n            symbol = (row.get(\"symbol\") or \"\").strip()\n            date = (row.get(\"trade_date\") or \"\").strip()\n            market = (row.get(\"market\") or \"\").strip()\n            rev = to_int(row.get(\"rev\"))\n            key = (symbol, date)\n            close = to_number(row.get(\"close\"))\n            volume = to_number(row.get(\"volume\"))\n            current = latest.get(key)\n            revision = -1 if rev is None else rev\n            if current is None or revision > current[0]:\n                latest[key] = (revision, close, volume, market)\n\n    revised_rows_dropped = input_data_rows - len(latest)\n\n    # -- rules 2 + 3: drop unparseable closes, then aggregate --------------\n    invalid_close_rows_dropped = 0\n    per_market = defaultdict(lambda: [0, 0.0, 0.0, 0.0])   # bars, sum, weighted, vol\n    per_pair = defaultdict(list)                           # (symbol, market) -> dates\n    symbols = set()\n    for (symbol, date), (rev, close, volume, market) in latest.items():\n        if close is None:\n            invalid_close_rows_dropped += 1\n            continue\n        weight = volume if volume is not None else 0.0\n        bucket = per_market[market]\n        bucket[0] += 1\n        bucket[1] += close\n        bucket[2] += close * weight\n        bucket[3] += weight\n        per_pair[(symbol, market)].append((date, close))\n        symbols.add(symbol)\n\n    final_bars = sum(bucket[0] for bucket in per_market.values())\n    market_rows = []\n    for market in sorted(per_market):\n        bars, total, weighted, volume = per_market[market]\n        average = total / bars if bars else 0.0\n        vwap = (weighted / volume) if volume else 0.0\n        market_rows.append([market, str(bars), \"%.2f\" % average, \"%.2f\" % vwap])\n\n    rising = falling = 0\n    for pair in per_pair:\n        series = sorted(per_pair[pair], key=lambda item: item[0])\n        first, last = series[0][1], series[-1][1]\n        if last > first:\n            rising += 1\n        elif last < first:\n            falling += 1\n\n    with open(os.path.join(OUT_DIR, \"market_bars.csv\"), \"w\", newline=\"\",\n              encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"market\", \"bars\", \"avg_close\", \"vwap_close\"])\n        writer.writerows(market_rows)\n    reconciliation = [\n        [\"input_data_rows\", str(input_data_rows)],\n        [\"revised_rows_dropped\", str(revised_rows_dropped)],\n        [\"invalid_close_rows_dropped\", str(invalid_close_rows_dropped)],\n        [\"final_bars\", str(final_bars)],\n        [\"symbols\", str(len(symbols))],\n        [\"rising_pairs\", str(rising)],\n        [\"falling_pairs\", str(falling)],\n    ]\n    with open(os.path.join(OUT_DIR, \"reconciliation.csv\"), \"w\", newline=\"\",\n              encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"key\", \"value\"])\n        writer.writerows(reconciliation)\n\n    print(\"streamed bytes=%d rows=%d revised_dropped=%d invalid_close_dropped=%d\"\n          % (os.path.getsize(SOURCE), input_data_rows, revised_rows_dropped,\n             invalid_close_rows_dropped))\n    print(\"final_bars=%d symbols=%d pairs=%d rising=%d falling=%d\"\n          % (final_bars, len(symbols), len(per_pair), rising, falling))\n    for row in market_rows:\n        print(\"market %s bars=%s avg=%s vwap=%s\" % tuple(row))\n    assert final_bars == input_data_rows - revised_rows_dropped - invalid_close_rows_dropped\n    assert final_bars == sum(int(row[1]) for row in market_rows)\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n"
+   }
+  ],
+  [
+   "run_python",
+   {
+    "script": "market_bars.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/market_bars.csv"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/reconciliation.csv"
+   }
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

@@ -1,0 +1,44 @@
+id: script-dev-003
+title: 多文件版本去重与分文件质量汇总（V2）
+category: script-dev
+tags: [planning, state-tracking, constraint, generalization]
+difficulty: hard
+environment: {name: shell_ws, snapshot: script-003}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。编写并运行通用汇总脚本：输入格式会有各种意外（列序不同、多余或
+    缺失字段、时间写法混用、空文件），脚本必须按表头名取列并按规范处理，不能针对示例硬编码。
+    禁止修改输入，完成后 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  实现 summarize.py（仅标准库），读取工作区根目录 a.csv、b.csv、c.csv，输出 out/report.csv。
+
+  每个源文件独立处理，规则按顺序执行：
+  1. 按表头名取列（列顺序不保证与示例一致，可能出现示例里没有的额外列，也可能缺列；
+     字段数与表头不一致、或 record_id 为空的行整行跳过）；
+  2. 先按 record_id 去重，保留 updated_at 最晚的那一行：时间戳是 ISO-8601，Z 与 ±HH:MM
+     偏移都要支持，并按 UTC **时刻**先后比较（不能按字符串比较）；无法解析或没有时区信息
+     （既无 Z 也无偏移）的时间戳视为非法，整行跳过；出现完全相同的时刻时，保留文件中
+     **后出现**的那一行；
+  3. 去重之后再过滤：仅保留 status=ok 且 value 为非负数字的记录（0 合法；"bad"、负数、
+     空值、非数字都不合法）；
+  4. 每个源文件输出一行 source,valid_count,total,avg；source 用文件名，按文件名升序，
+     最后一行 source=grand（所有有效记录的合计）。
+
+  金额一律固定两位小数、不使用千分位；某个文件一行有效记录都没有（只有表头、空文件、
+  或全部被过滤）时仍要输出该行，valid_count=0、total=0.00、avg=0.00；grand 同理。
+
+  运行脚本生成结果，禁止修改 a.csv、b.csv、c.csv。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.report.columns == ['source', 'valid_count', 'total', 'avg']"
+  - type: state_assert
+    expr: "state.csv.report.rows == [['a.csv', '2', '20.00', '10.00'], ['b.csv', '2', '20.00', '10.00'], ['c.csv', '2', '10.00', '5.00'], ['grand', '6', '50.00', '8.33']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0 and 'a.csv' not in state.modified and 'b.csv' not in state.modified and 'c.csv' not in state.modified"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash
+    min_calls: 1

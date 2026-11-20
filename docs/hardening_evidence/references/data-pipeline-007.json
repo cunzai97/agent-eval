@@ -1,0 +1,63 @@
+{
+ "note": "仅凭题面推出的参考解：先不信 README/表头写死的 yuan 口径，用 branch_net.py 对账两件事——(a) 逐单用 qty x catalog.unit_price_yuan 反算金额，29 条可比价订单里 28 条与系数 0.01 吻合、0 条与 1.0 吻合，故 amount_yuan/fee_yuan 的单位是分；(b) 逐单与 settlement.csv 银行实收比对，27 条已到账订单里 (amount-fee)x0.01 全中、amountx0.01 全不中，故可结算净额必须扣掉 fee。再按题面顺序执行去重（revised_at 最晚，36 行->32 单）→ status=completed → 丢弃 qty<1/金额缺失或不可解析/amount<fee → 与到账表求交（未到账 2 单剔除）→ 每单净额 x0.01 → 按 branch 汇总，out/branch_net.csv 与 out/meta.csv 全部由脚本算出并打印对账证据，四个分部 8/6/6/5 单、净额合计 18184.40。输入三表与 README 只读未改。用于证明 data-pipeline-007 可解，不依赖任何模型。",
+ "author": "qoder",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "README.md"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "orders.csv"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "settlement.csv"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "catalog.csv"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "branch_net.py",
+    "content": "#!/usr/bin/env python3\n\"\"\"orders.csv -> out/branch_net.csv + out/meta.csv.\n\nThe header and README.md both call every money column \"yuan\". Neither is\nevidence, so the two open questions -- (a) how many yuan one unit of\namount_yuan / fee_yuan really is, (b) whether the settleable net is `amount` or\n`amount - fee` -- are answered from the data itself before any aggregate is\nwritten:\n\n  (a) every order line is re-priced as qty x catalog.unit_price_yuan; the unit\n      of amount_yuan is the candidate factor whose implied amount matches the\n      catalogue for every priceable line;\n  (b) each order that also appears in settlement.csv (bank money actually\n      received, the one table the README itself vouches for) is compared against\n      both candidate bases, and the basis that reconciles line by line wins.\n\nBoth verdicts are then written to meta.csv together with the delivered total, so\na reviewer can see which claim the numbers rest on.\n\"\"\"\nfrom __future__ import annotations\n\nimport csv\nimport os\nfrom collections import defaultdict\n\nORDERS = \"orders.csv\"\nSETTLEMENT = \"settlement.csv\"\nCATALOG = \"catalog.csv\"\nOUT_DIR = \"out\"\nUNIT_CANDIDATES = (1.0, 0.01)          # README claims 1.0; the data decides\nTOL = 0.005                             # cent-level rounding tolerance\nCENTS = {\"1.0\": \"1\", \"0.01\": \"0.01\"}\n\n\ndef to_number(raw):\n    \"\"\"Float, or None for blank / '--' / 'N/A' / anything unparseable.\"\"\"\n    if raw is None:\n        return None\n    text = str(raw).strip()\n    if not text or text.lower() in {\"na\", \"n/a\", \"none\", \"null\", \"-\", \"--\"}:\n        return None\n    try:\n        return float(text)\n    except ValueError:\n        return None\n\n\ndef money(value):\n    return \"%.2f\" % value\n\n\ndef read_rows(path):\n    with open(path, newline=\"\", encoding=\"utf-8\") as handle:\n        return list(csv.DictReader(handle))\n\n\ndef latest_revisions(rows):\n    \"\"\"Rule 1: one row per order_id, the one with the newest revised_at.\"\"\"\n    best = {}\n    for row in rows:\n        key = (row.get(\"order_id\") or \"\").strip()\n        stamp = (row.get(\"revised_at\") or \"\").strip()\n        current = best.get(key)\n        if current is None or stamp >= (current.get(\"revised_at\") or \"\"):\n            best[key] = row\n    return best\n\n\ndef reconcile_unit(orders, prices):\n    \"\"\"(a) how many yuan is one unit? Re-price every line from the catalogue.\"\"\"\n    scores = defaultdict(int)\n    checked = 0\n    for order in orders.values():\n        qty = to_number(order.get(\"qty\"))\n        amount = to_number(order.get(\"amount_yuan\"))\n        price = prices.get((order.get(\"sku\") or \"\").strip())\n        if not qty or qty < 1 or amount is None or price is None:\n            continue\n        checked += 1\n        expected = round(qty * price, 2)\n        for unit in UNIT_CANDIDATES:\n            if abs(amount * unit - expected) <= TOL:\n                scores[unit] += 1\n    winner = max(UNIT_CANDIDATES, key=lambda unit: (scores[unit], -unit))\n    return winner, dict(scores), checked\n\n\ndef reconcile_fee_basis(orders, settlements, unit):\n    \"\"\"(b) is the bank amount amount, or amount - fee? Compare order by order.\"\"\"\n    scores = defaultdict(int)\n    checked = 0\n    for key, order in orders.items():\n        if key not in settlements:\n            continue\n        amount = to_number(order.get(\"amount_yuan\"))\n        fee = to_number(order.get(\"fee_yuan\"))\n        bank = to_number(settlements[key])\n        if amount is None or fee is None or bank is None:\n            continue\n        checked += 1\n        for basis, value in ((\"amount\", amount), (\"amount_minus_fee\", amount - fee)):\n            if abs(value * unit - bank) <= TOL:\n                scores[basis] += 1\n    fee_deducted = scores[\"amount_minus_fee\"] > scores[\"amount\"]\n    return fee_deducted, dict(scores), checked\n\n\ndef pipeline(orders, settlements, unit, fee_deducted):\n    \"\"\"Rules 1-7 on the reconciled unit and basis.\"\"\"\n    buckets = defaultdict(lambda: [0, 0.0])\n    dropped = defaultdict(int)\n    kept = 0\n    for key in sorted(orders):\n        order = orders[key]\n        if (order.get(\"status\") or \"\").strip() != \"completed\":\n            dropped[\"status\"] += 1\n            continue\n        qty = to_number(order.get(\"qty\"))\n        amount = to_number(order.get(\"amount_yuan\"))\n        fee = to_number(order.get(\"fee_yuan\"))\n        if qty is None or qty < 1 or amount is None or fee is None:\n            dropped[\"illegal_numbers\"] += 1\n            continue\n        if amount < fee:\n            dropped[\"amount_below_fee\"] += 1\n            continue\n        if key not in settlements:\n            dropped[\"unsettled\"] += 1\n            continue\n        net = (amount - fee) if fee_deducted else amount\n        branch = (order.get(\"branch\") or \"\").strip()\n        buckets[branch][0] += 1\n        buckets[branch][1] += net * unit\n        kept += 1\n    rows = [[branch, str(buckets[branch][0]), money(buckets[branch][1])]\n            for branch in sorted(buckets)]\n    return rows, kept, dict(dropped)\n\n\ndef main():\n    os.makedirs(OUT_DIR, exist_ok=True)\n    order_rows = read_rows(ORDERS)\n    orders = latest_revisions(order_rows)\n    settlements = {(row.get(\"order_id\") or \"\").strip(): row.get(\"settle_amount_yuan\")\n                   for row in read_rows(SETTLEMENT)}\n    prices = {(row.get(\"sku\") or \"\").strip(): to_number(row.get(\"unit_price_yuan\"))\n              for row in read_rows(CATALOG)}\n\n    unit, unit_scores, unit_checked = reconcile_unit(orders, prices)\n    fee_deducted, fee_scores, fee_checked = reconcile_fee_basis(orders, settlements, unit)\n    rows, kept, dropped = pipeline(orders, settlements, unit, fee_deducted)\n    total = sum(float(row[2]) for row in rows)\n\n    with open(os.path.join(OUT_DIR, \"branch_net.csv\"), \"w\", newline=\"\",\n              encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"branch\", \"order_count\", \"net_yuan\"])\n        writer.writerows(rows)\n    with open(os.path.join(OUT_DIR, \"meta.csv\"), \"w\", newline=\"\",\n              encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"key\", \"value\"])\n        writer.writerow([\"amount_yuan_per_unit\", CENTS.get(repr(unit), repr(unit))])\n        writer.writerow([\"fee_deducted\", \"true\" if fee_deducted else \"false\"])\n        writer.writerow([\"net_total_yuan\", money(total)])\n\n    print(\"orders raw=%d deduped=%d settled=%d kept=%d dropped=%s\"\n          % (len(order_rows), len(orders), len(settlements), kept, dict(dropped)))\n    print(\"unit check: priced_lines=%d agreement_per_candidate=%s -> chosen=%s\"\n          % (unit_checked, {CENTS.get(repr(k), repr(k)): v for k, v in unit_scores.items()},\n             CENTS.get(repr(unit), repr(unit))))\n    print(\"fee check: settled_lines=%d agreement_per_basis=%s -> fee_deducted=%s\"\n          % (fee_checked, fee_scores, fee_deducted))\n    for row in rows:\n        print(\"branch %s count=%s net=%s\" % tuple(row))\n    print(\"net_total_yuan=%s\" % money(total))\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n"
+   }
+  ],
+  [
+   "run_python",
+   {
+    "script": "branch_net.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/branch_net.csv"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/meta.csv"
+   }
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

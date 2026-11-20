@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 测试与运行期垃圾（包括 environments/*/snapshots 下跑出来的缓存）
+.pytest_cache/
+.coverage
+
+# 大型第三方 PDK 资产：不入库，见 tools/fetch_liberty_asset.sh
+assets/liberty/*.lib
+assets/liberty/*.bak
+assets/liberty/*.truncated-*
+
+# 本地密钥/环境
+.env
+*.pem
+*.key
+
+# 临时排查目录（不入库）
+.scratch/
+
+# 编辑器与系统
+.idea/
+.vscode/
+.DS_Store
+
+# 外部工具的本地记忆目录（不入库）
+.workbuddy/
+
+# 本地备份（不入库）
+*.bak-*
+
+# 本地评测记录与运行日志（不含在公开仓库里）
+runs/
+logs/
+
+# IDE / 外部工具的本地设置
+.qoder/
+
+# 真实的端点与密钥引用（公开仓库只放 models.example.yaml）
+models.yaml

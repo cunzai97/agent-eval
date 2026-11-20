@@ -1,0 +1,37 @@
+id: locate-bug-007
+title: 审计 Walk-forward 指标虚高的三条独立泄漏链
+category: locate
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: locate-007}
+agent:
+  system_prompt: |
+    你是量化研究平台审计工程师。先运行完整测试，再沿数据构建调用链区分真实泄漏与正确的因果实现；不要修改代码。用 answer 提交结构化审计后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  某 walk-forward 研究离线指标显著高于上线表现。代码中同时包含历史成分处理、带修订的特征
+  快照、fold 标准化、标签 purge、特征 lag 和次日成交逻辑。请找出所有独立的信息泄漏定义点，
+  并排除本身正确的因果路径。必须运行完整测试，阅读 pipeline 入口及六个候选模块，禁止改代码。
+
+  用 answer 提交单行 JSON，只含 findings。findings 必须按数据进入 pipeline 的顺序列出三个对象，
+  每个对象仅含 file、symbol、cause。cause 分别从以下代码中选择且不得重复：
+  current-universe-used-for-history、ignores-publication-cutoff、fits-scaler-on-all-folds、
+  missing-label-purge、uses-same-day-execution、uses-unlagged-feature。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'findings': [{'file': 'data/universe.py', 'symbol': 'members_asof', 'cause': 'current-universe-used-for-history'}, {'file': 'features/store.py', 'symbol': 'feature_asof', 'cause': 'ignores-publication-cutoff'}, {'file': 'train/scale.py', 'symbol': 'normalize_fold', 'cause': 'fits-scaler-on-all-folds'}]}"
+  - type: state_assert
+    expr: "all(path in state.files_read for path in ['pipeline/build.py', 'data/universe.py', 'features/store.py', 'train/scale.py', 'split/walk.py', 'features/lag.py', 'backtest/execution.py'])"
+  - type: state_assert
+    expr: "state.test_runs >= 1 and state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

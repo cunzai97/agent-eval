@@ -1,0 +1,76 @@
+{
+ "note": "仅凭题面推出的参考修复（不依赖任何模型）：scheduler 里引入 per-operation 的 epoch/incarnation 令牌，foreground 走独立队列并优先于未开始的 review；新 foreground 使在跑的 review 失效——同 conversation 的 review 直接退役、其他 conversation 只留一份并在空闲后恢复；迟到 complete/transport_error 若来自已失效对象或非当前 active 一律拒绝，不改 active、不写 completed、不入队 retry；retry 保留 operation_id 且 attempt 计总尝试数；一个 source 最多一个 review 且 review 不再递归触发；TransportAdapter 只上报一次，retry 归 scheduler 独占。Work 新增 compare=False 的 epoch 字段以保持公开构造签名与值相等语义。",
+ "author": "qoder",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "review/model.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "review/scheduler.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "review/transport.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tests/test_review_scheduler.py"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "grep",
+   {
+    "pattern": "transport_error"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "review/model.py",
+    "old_text": "from dataclasses import dataclass, replace\n\n\n@dataclass(frozen=True)\nclass Work:\n    operation_id: str\n    conversation_id: str\n    kind: str\n    attempt: int = 1\n    source_operation_id: str | None = None\n\n    def retried(self):\n        return replace(self, attempt=self.attempt + 1)\n",
+    "new_text": "from dataclasses import dataclass, field, replace\n\n\n@dataclass(frozen=True)\nclass Work:\n    operation_id: str\n    conversation_id: str\n    kind: str\n    attempt: int = 1\n    source_operation_id: str | None = None\n    # Which *incarnation* of ``operation_id`` this object is. A review that is\n    # interrupted and the copy that resumes it share operation_id/kind/attempt,\n    # and a transport retry keeps operation_id, so value equality alone cannot\n    # tell a live callback from a late one. The scheduler drops a callback whose\n    # epoch is no longer current for that operation. Kept out of __eq__ on\n    # purpose: the identity of an operation must not change.\n    epoch: int = field(default=0, compare=False, repr=False)\n\n    def retried(self):\n        return replace(self, attempt=self.attempt + 1)\n"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "review/scheduler.py",
+    "old_text": "from collections import deque\n\nfrom .model import Work\n\n\nclass ReviewScheduler:\n    \"\"\"Single inference-slot scheduler for foreground turns and memory reviews.\"\"\"\n\n    def __init__(self, max_attempts=3):\n        self.max_attempts = max_attempts\n        self.foreground = deque()\n        self.background = deque()\n        self.active = None\n        self.completed = []\n        self._reviewed_sources = set()\n\n    def submit_foreground(self, conversation_id, operation_id):\n        work = Work(operation_id, conversation_id, \"foreground\")\n        # FIFO submission lets a long review stay ahead of a new user turn.\n        self.background.append(work)\n        return work\n\n    def trigger_review(self, source):\n        review = Work(\n            f\"review:{source.operation_id}\", source.conversation_id, \"review\",\n            source_operation_id=source.operation_id,\n        )\n        self.background.append(review)\n        return review\n\n    def next_work(self):\n        if self.active is not None:\n            return None\n        queue = self.background if self.background else self.foreground\n        if not queue:\n            return None\n        self.active = queue.popleft()\n        return self.active\n\n    def complete(self, work):\n        # Late completions are accepted even after another request took the slot.\n        self.completed.append(work.operation_id)\n        if self.active == work:\n            self.active = None\n        return True\n\n    def transport_error(self, work):\n        if work.attempt >= self.max_attempts:\n            self.active = None\n            return False\n        retry = work.retried()\n        self.background.appendleft(retry)\n        self.active = None\n        return True\n",
+    "new_text": "from collections import deque\nfrom dataclasses import replace\n\nfrom .model import Work\n\n\nclass ReviewScheduler:\n    \"\"\"Single inference-slot scheduler for foreground turns and memory reviews.\n\n    One slot, one active work. Foreground always wins over a review that has not\n    started yet, and a new foreground supersedes the review in flight:\n\n    * a review of the *same* conversation is retired, it never runs again;\n    * a review of another conversation is only interrupted - exactly one copy is\n      kept and resumes once the slot goes idle;\n    * a callback (late completion or late transport error) from a retired review\n      or from a superseded attempt is rejected, so it cannot touch the current\n      active work, cannot enter the completion history and cannot queue a retry;\n    * a foreground that is already running is never preempted by another\n      foreground - the new turn queues instead;\n    * one foreground source triggers at most one review, and a review can never\n      trigger a review, so the background work cannot recurse.\n\n    ``transport.TransportAdapter`` only reports; the scheduler is the single\n    retry owner. Retries keep the operation_id and ``attempt`` counts total\n    attempts, bounded by ``max_attempts``.\n    \"\"\"\n\n    def __init__(self, max_attempts=3):\n        self.max_attempts = max_attempts\n        self.foreground = deque()\n        self.background = deque()\n        self.active = None\n        self.completed = []\n        self._reviewed_sources = set()\n        self._reviews_by_source = {}\n        self._epoch = {}\n\n    # ---------------- incarnation bookkeeping ----------------\n\n    def _reopen(self, operation_id):\n        \"\"\"Start the next incarnation of ``operation_id``; return its epoch.\"\"\"\n        epoch = self._epoch.get(operation_id, 0) + 1\n        self._epoch[operation_id] = epoch\n        return epoch\n\n    def _stale(self, work):\n        \"\"\"True for an object that is no longer the current incarnation.\"\"\"\n        return work is None or work.epoch != self._epoch.get(work.operation_id, 0)\n\n    def _queue_for(self, work):\n        return self.background if work.kind == \"review\" else self.foreground\n\n    def _enqueue(self, work):\n        self._queue_for(work).append(work)\n        return work\n\n    # ---------------- submission ----------------\n\n    def submit_foreground(self, conversation_id, operation_id):\n        work = Work(operation_id, conversation_id, \"foreground\", epoch=self._reopen(operation_id))\n        self._enqueue(work)\n        # Background thinking must never delay a user turn.\n        self._supersede_reviews(conversation_id)\n        return work\n\n    def trigger_review(self, source):\n        if source is None or source.kind != \"foreground\":\n            return None                       # a review never triggers a review\n        already = self._reviews_by_source.get(source.operation_id)\n        if already is not None:\n            return already                    # at most one review per source\n        review_id = f\"review:{source.operation_id}\"\n        review = Work(review_id, source.conversation_id, \"review\",\n                      source_operation_id=source.operation_id, epoch=self._reopen(review_id))\n        self._reviews_by_source[source.operation_id] = review\n        self._reviewed_sources.add(source.operation_id)\n        self._enqueue(review)\n        return review\n\n    def _supersede_reviews(self, conversation_id):\n        active = self.active\n        if active is not None and active.kind == \"review\" and not self._stale(active):\n            self.active = None\n            if active.conversation_id == conversation_id:\n                self._reopen(active.operation_id)      # obsolete: it never runs again\n            else:\n                # interrupted, not cancelled: one copy resumes when the slot frees\n                self._enqueue(replace(active, epoch=self._reopen(active.operation_id)))\n        kept = []\n        for queued in list(self.background):\n            if queued.conversation_id == conversation_id:\n                self._reopen(queued.operation_id)      # that conversation moved on\n                continue\n            kept.append(queued)\n        self.background = deque(kept)\n\n    # ---------------- the single slot ----------------\n\n    def next_work(self):\n        if self.active is not None:\n            if not self._stale(self.active):\n                return None                    # slot is busy, foregrounds queue up\n            self.active = None\n        for queue in (self.foreground, self.background):   # foreground first\n            while queue:\n                work = queue.popleft()\n                if self._stale(work):\n                    continue\n                self.active = work\n                return work\n        return None\n\n    def complete(self, work):\n        if self._stale(work) or work is not self.active:\n            return False            # late or foreign: current active stays untouched\n        self.active = None\n        if work.operation_id in self.completed:\n            return False            # one operation is never recorded twice\n        self.completed.append(work.operation_id)\n        return True\n\n    def transport_error(self, work):\n        if self._stale(work) or work is not self.active:\n            return False        # a retired review's error must not enqueue a retry\n        self.active = None\n        if work.attempt >= self.max_attempts:\n            self._reopen(work.operation_id)         # total attempt budget is spent\n            return False\n        self._enqueue(replace(work, attempt=work.attempt + 1,\n                              epoch=self._reopen(work.operation_id)))\n        return True\n"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "review/transport.py",
+    "old_text": "class TransportAdapter:\n    def __init__(self, scheduler):\n        self.scheduler = scheduler\n\n    def incomplete_stream(self, work):\n        # Both transport and scheduler used to retry, duplicating one operation.\n        first = self.scheduler.transport_error(work)\n        second = self.scheduler.transport_error(work)\n        return first or second\n",
+    "new_text": "class TransportAdapter:\n    \"\"\"Reports a broken stream; the scheduler is the only retry owner.\n\n    Used to requeue on top of the scheduler's own requeue: one dropped stream\n    became two queued copies of the same operation, which doubled every attempt,\n    blew past max_attempts and could record the same operation twice.\n    \"\"\"\n\n    def __init__(self, scheduler):\n        self.scheduler = scheduler\n\n    def incomplete_stream(self, work):\n        # Hand the failure over exactly once; the scheduler keeps the\n        # operation_id, counts the attempt and decides whether the budget is spent.\n        return self.scheduler.transport_error(work)\n"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

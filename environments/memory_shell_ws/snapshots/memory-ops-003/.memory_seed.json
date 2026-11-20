@@ -1,0 +1,13 @@
+{
+  "memories": [
+    {
+      "id": "mem-alert-policy",
+      "key": "checkout:alert-window-policy",
+      "content": "checkout 告警按 UTC 分钟归属，error_rate > 0.5 连续 5 分钟才形成事故。",
+      "tags": ["checkout", "alert", "runbook", "stale", "service.json", "metrics.csv", "事故窗口", "规则"],
+      "status": "active",
+      "version": 4,
+      "origin": "legacy-runbook"
+    }
+  ]
+}

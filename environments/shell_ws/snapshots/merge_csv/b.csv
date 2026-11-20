@@ -1,0 +1,4 @@
+employee_id,city,email,updated_at
+u1,NYC,,2025-01-03T00:00:00Z
+u2,SF,bob@b.test,2025-01-02T00:00:00Z
+u3,LA,carol@b.test,2025-01-01T00:00:00Z

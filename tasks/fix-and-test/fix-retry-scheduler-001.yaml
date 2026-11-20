@@ -1,0 +1,43 @@
+id: fix-retry-scheduler-001
+title: 修复确定性退避与带代次的重试状态机
+category: fix-and-test
+tags: [planning, recovery, state-tracking, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: retry_schedule}
+agent:
+  system_prompt: |
+    你是任务调度工程师。先运行测试复现，修复 policy 与 scheduler 的契约；禁止修改 tests/，
+    不得引入睡眠、墙上时钟或网络，改完复跑测试后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  修复 retrykit/，只用标准库并保持公开签名。
+
+  RetryPolicy(max_attempts=3, base_delay=1.0, cap_delay=8.0)：max_attempts 是正 int（bool 不算）；
+  两个 delay 都是有限正数（bool 不算），且 cap_delay>=base_delay，否则 ValueError。
+  delay(attempt) 的 attempt 是刚失败的一基次尝试编号，必须为正 int（bool 不算）；返回
+  min(cap_delay, base_delay * 2**(attempt-1))，大编号不得溢出。
+
+  RetryScheduler 在内存中保存操作，operation_id 会 strip，strip 后必须非空且终身唯一（含终态）。
+  所有 now 都是有限 int/float（bool 不算），内部转 float；submit 返回初始 token=1，初始
+  attempts=0、state=ready、due=now。start(now) 只在 due<=now 的 ready 操作中按 (due,id) 取一个，
+  标为 running，返回 {id,payload,attempts,token}，无可用操作返回 None。
+
+  succeed(id,token) 只接受 running 且 token 匹配的回调，置 succeeded、清 due、返回 True，否则 False。
+  fail(id,token,now) 对不匹配回调返回 stale 且不得改状态；匹配时 attempts 加一，达到 max_attempts
+  则置 failed、清 due、返回 failed，否则置 ready、due=now+policy.delay(attempts)、token 加一、返回 retry。
+  cancel(id) 可取消 ready 或 running，清 due、token 加一并返回 True；不存在或终态返回 False。
+  snapshot() 按 id 升序返回 {id,state,attempts,due,token}，不能泄露 payload。
+
+  旧 token 的迟到成功/失败不得影响新尝试。不要另加 retry owner，不要修改测试。
+budget: {max_steps: 42, max_tokens: 64000, timeout_s: 720}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 25 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['retrykit/policy.py', 'retrykit/scheduler.py'])"
+  - type: order_of
+    tools: [edit_file, run_tests]

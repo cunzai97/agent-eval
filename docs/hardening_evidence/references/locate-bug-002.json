@@ -1,0 +1,22 @@
+{
+ "note": "仅凭题面推出的参考定位：fee_cache_key 只返回 subtotal，丢掉 order_id 与 customer_tier 两个业务身份维度，导致同额普通单与 VIP 单命中同一缓存条目；直接调用它并把错误结果写进 _CACHE 原样传播的是 service_fee（自身 0/20 判据无误，故为近邻诱饵而非根因）。用于证明 locate-bug-002 可解，不依赖任何模型，且不修改任何文件。",
+ "author": "qoder",
+ "calls": [
+  ["list_files", {}],
+  ["run_tests", {}],
+  ["read_file", {"path": "tests/test_final.py"}],
+  ["read_file", {"path": "billing/final.py"}],
+  ["grep", {"pattern": "def service_fee"}],
+  ["read_file", {"path": "billing/fees.py"}],
+  ["grep", {"pattern": "def fee_cache_key"}],
+  ["read_file", {"path": "billing/cache_key.py"}],
+  ["grep", {"pattern": "fee_cache_key("}],
+  ["read_file", {"path": "billing/base.py"}],
+  ["read_file", {"path": "billing/discounts.py"}],
+  ["read_file", {"path": "billing/tax.py"}],
+  ["grep", {"pattern": "coupon"}],
+  ["run_tests", {}],
+  ["answer", {"value": "{\"file\": \"billing/cache_key.py\", \"symbol\": \"fee_cache_key\", \"cause\": \"omits-order-and-tier\", \"decoy\": \"service_fee\"}"}],
+  ["done", {}]
+ ]
+}

@@ -1,0 +1,13 @@
+{
+  "memories": [
+    {
+      "id": "mem-tenant-cache",
+      "key": "profile:tenant-leak-root-cause",
+      "content": "历史结论：跨租户资料串值来自 api/handler.py 的参数顺序；cache/key.py 已确认安全，无需检查。",
+      "tags": ["profile", "cache", "tenant", "stale"],
+      "status": "active",
+      "version": 1,
+      "origin": "unverified-incident-note"
+    }
+  ]
+}

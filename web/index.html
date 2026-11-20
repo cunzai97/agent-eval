@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0e1117" />
+    <title>Tracebench / Agent Eval Console</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script>
+      // 控制台把看板嵌在同页 iframe 里（index.html?embed=1#board）：那种场景下侧边栏、
+      // 顶栏和页面留白都是重复的，按 embed 去掉，只留看板本身。
+      if (new URLSearchParams(location.search).get('embed')) {
+        document.documentElement.classList.add('embed-mode');
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">跳到主要内容</a>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark"><span>TB</span><i></i></div>
+          <div>
+            <strong>TRACEBENCH</strong>
+            <small>AGENT EVAL CONSOLE</small>
+          </div>
+        </div>
+        <div class="workspace-meta">
+          <span class="pulse-dot"></span>
+          <div><small>WORKSPACE</small><b>agent-eval / local</b></div>
+          <em id="workspaceMeta">载入中…</em>
+        </div>
+
+        <nav class="nav" aria-label="主导航">
+          <p class="nav-label">MONITOR</p>
+          <a class="nav-item console-link" href="console.html"><span class="nav-icon">▤</span>实时控制台 <em>LIVE</em></a>
+          <button class="nav-item active" data-view="overview"><span class="nav-icon">◈</span>总览 <em id="overviewNavBadge">—</em></button>
+          <button class="nav-item" data-view="runs"><span class="nav-icon">◒</span>任务明细 <em id="suiteTaskCount">—</em></button>
+          <button class="nav-item" data-view="board"><span class="nav-icon">▧</span>任务看板 <em id="boardQueueCount">0</em></button>
+          <p class="nav-label">ANALYZE</p>
+          <button class="nav-item" data-view="history"><span class="nav-icon">≋</span>评测历史 <em id="historyRunCount">—</em></button>
+          <button class="nav-item" data-view="leaderboard"><span class="nav-icon">♜</span>模型排名 <em id="rankingModelCount">—</em></button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <div class="service-line" id="runnerService"><span class="online-dot"></span><span>LOCAL RUNNER</span><b>CHECKING</b></div>
+          <div class="version" id="buildMeta">TRACEBENCH · SUITE — · DATA —</div>
+        </div>
+      </aside>
+
+      <main class="main" id="mainContent">
+        <header class="topbar">
+          <div class="crumb"><span>RUN</span><b>/</b><strong id="currentRunCrumb">CURRENT RUN</strong><span class="status-chip" id="runStatusChip"><i></i> —</span></div>
+          <div class="top-actions">
+            <button class="icon-button" id="notificationButton" title="查看本轮重点信号" aria-label="查看本轮重点信号" aria-expanded="false" aria-controls="noticePanel">♢<sup id="noticeCount" hidden>0</sup></button>
+            <button class="icon-button" id="themeButton" title="切换主题" aria-label="切换主题">☼</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="view active" id="view-overview">
+            <div class="page-intro reveal">
+              <div>
+                <p class="kicker" id="overviewKicker">EVALUATION / SUITE</p>
+                <h1>模型行为，<span>一眼可读。</span></h1>
+                <p class="lede">把每一次工具调用、失败恢复和记忆闭环，收敛成一张可行动的信号图。</p>
+              </div>
+              <button class="primary-button" id="rerunButton"><span>＋</span> 发起新评测</button>
+            </div>
+
+            <div class="metric-grid reveal delay-1">
+              <article class="metric-card accent-card">
+                <div class="metric-top"><span>PASS RATE</span><span class="trend" id="overviewRateTrend" hidden></span></div>
+                <div class="metric-value" id="overviewRate">—<span>%</span></div>
+                <div class="metric-foot" id="overviewRateFoot">正在计算可比较结果…</div>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>AVG. TOKENS</span><span class="metric-icon">⌁</span></div>
+                <div class="metric-value" id="overviewTokens">—<span>k</span></div>
+                <div class="metric-foot" id="overviewTokensFoot">input + output / 可比较题</div>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>AVG. WALL TIME</span><span class="metric-icon">◷</span></div>
+                <div class="metric-value" id="overviewElapsed">—<span>s</span></div>
+                <div class="metric-foot" id="overviewElapsedFoot">任务墓钟均值</div>
+              </article>
+              <article class="metric-card warning-card">
+                <div class="metric-top"><span>MEMORY LOOP</span><span class="flag" id="memoryFlag">ATTENTION</span></div>
+                <div class="metric-value" id="overviewMemory">—<span>/—</span></div>
+                <div class="metric-foot" id="overviewMemoryFoot">主动检索与纠错未触发 <span class="pulse-ring"></span></div>
+              </article>
+            </div>
+
+            <div class="hero-grid reveal delay-2">
+              <article class="panel signal-panel">
+                <div class="panel-head"><div><p class="panel-kicker">RUN SIGNAL</p><h2>能力信号</h2><p class="panel-hint">点任意维度→筛出该维度题目</p></div><button class="ghost-button" data-view-link="runs">全部任务 ↗</button></div>
+                <div class="signal-body">
+                  <div class="ring-wrap"><div class="score-ring"><div><strong id="overviewRingPass">—</strong><small>PASS</small></div></div><span class="ring-caption" id="overviewRingCaption">current suite<br /><b>— tasks</b></span></div>
+                  <div class="signal-list" id="overviewSignalList">
+                    <div class="signal-row"><span>正在统计维度通过率…</span></div>
+                  </div>
+                </div>
+              </article>
+              <article class="panel insight-panel">
+                <div class="panel-head"><div><p class="panel-kicker">AUTOMATED READOUT</p><h2>观察摘要</h2></div><span class="live-label"><i></i> LIVE</span></div>
+                <div class="insight-quote" id="overviewInsightQuote">“题目定义变化后，<br /><strong>旧结果自动失效。</strong>”</div>
+                <p class="insight-copy" id="overviewInsightCopy">正在根据当前 suite 与最近结果生成摘要。</p>
+                <div class="insight-meta"><span>SOURCE <b id="insightSource">report.md</b></span><span>RUN <b id="insightRun">—</b></span></div>
+              </article>
+            </div>
+
+            <div class="lower-grid reveal delay-3">
+              <article class="panel table-panel">
+                <div class="panel-head table-head"><div><p class="panel-kicker">LATEST TRACE</p><h2>最近任务</h2></div><button class="text-button" data-view-link="runs">查看全部 <span>→</span></button></div>
+                <div class="table-scroll"><table><thead><tr><th>任务</th><th>类型</th><th>结果</th><th>步骤</th><th>耗时</th><th>tokens</th></tr></thead><tbody id="recentTable"></tbody></table></div>
+              </article>
+              <article class="panel envelope-panel">
+                <div class="panel-head"><div><p class="panel-kicker">RUNTIME ENVELOPE</p><h2>运行配置</h2></div><button class="ghost-button" id="envelopeNewRun" type="button">发起评测 ↗</button></div>
+                <dl class="env-list" id="envList"><div><dt>状态</dt><dd>正在读取本地 Runner…</dd></div></dl>
+                <p class="env-foot"><span>参数在发起评测时设定，控制台有同一份实时值</span><a href="console.html">控制台 ↗</a></p>
+              </article>
+            </div>
+          </section>
+
+          <section class="view" id="view-runs"><div class="view-header"><div><p class="kicker" id="runRecordKicker">TRACE LOG</p><h1>任务明细</h1><p class="lede">点开任意任务查看完整题面、系统约束、判定条件和本轮失败证据；定义变更后的旧结果会标为待重测。</p></div><button class="filter-button" id="filterButton" aria-expanded="false" aria-controls="filterPanel">⌘ 过滤器</button></div><div class="filter-panel" id="filterPanel" hidden><div><span class="filter-label">CATEGORY</span><div class="filter-chips" id="categoryFilters"></div></div><button class="clear-filter" id="clearFilters">清空条件</button></div><div class="panel full-panel"><div class="toolbar"><label class="search-box">⌕ <input id="runSearch" placeholder="搜索 ID、标题或类别…" aria-label="搜索任务" /></label><div class="toolbar-tabs" id="statusFilters"><button class="selected" data-status="all">全部 <b id="allCount">—</b></button><button data-status="PASS">通过 <b id="passCount">—</b></button><button data-status="FAIL">失败 <b id="failCount">—</b></button><button data-status="STALE">待重测 <b id="staleCount">—</b></button></div></div><div class="result-summary"><span id="resultCount">正在载入任务…</span><span>点击任务行查看详情 <kbd>↵</kbd></span></div><div class="table-scroll"><table class="run-table"><thead><tr><th>任务</th><th>类别</th><th>状态</th><th>步骤</th><th>累计 tokens</th><th>耗时</th><th>失败证据</th><th aria-label="操作"></th></tr></thead><tbody id="runsTable"></tbody></table></div></div></section>
+
+          <section class="view" id="view-board"><div class="view-header"><div><p class="kicker">JOB BOARD / LOCAL RUNNER</p><h1>任务看板</h1><p class="lede">每张卡片是一道题：拖到「排队」就能挑着跑，点开看逐次运行的判定与轨迹；并发数在 run 跑起来之后也能改。</p></div><div class="header-actions"><span class="status-chip" id="boardRunChip"><i></i> IDLE</span><button class="filter-button" id="boardRefresh" type="button">↻ 刷新</button></div></div>
+            <div class="board-toolbar"><div class="board-tool"><span class="board-tool-label">排序</span><div class="board-segment" id="boardSorts" role="group" aria-label="排序方式"><button type="button" data-sort="manual" class="selected">手动</button><button type="button" data-sort="difficulty_desc">难度 ↓</button><button type="button" data-sort="difficulty_asc">难度 ↑</button><button type="button" data-sort="measured_desc">实测 ↓</button><button type="button" data-sort="measured_asc">实测 ↑</button></div><small class="board-tool-hint" id="sortHint">拖拽会切回手动排序</small></div><div class="board-tool"><span class="board-tool-label">并发</span><input type="range" id="boardJobs" min="1" max="4" step="1" value="4" aria-label="并发任务数" /><b id="boardJobsValue">4</b><button class="ghost-button" id="boardJobsApply" type="button">应用</button><small class="board-tool-hint" id="boardJobsHint">连接 Runner 后显示</small></div><div class="board-tool board-tool-right"><label class="search-box board-search">⌕ <input id="boardFilter" placeholder="筛选卡片…" aria-label="筛选看板卡片" /></label><button class="primary-button" id="boardLaunch" type="button"><span>▶</span> 跑这 <b id="boardLaunchCount">0</b> 题</button></div></div>
+            <div class="board-lanes" id="boardLanes"><article class="board-lane" data-lane="queue"><header><h2>排队</h2><b id="laneQueueCount">0</b><small>没结论的题自动在这<br/>发车即跑这一列</small></header><div class="board-cards" data-drop="queue"></div></article><article class="board-lane lane-running" data-lane="running"><header><h2>在跑</h2><b id="laneRunningCount">0</b><small>当前 run 正在执行，不能拖入</small></header><div class="board-cards" data-drop="running"></div></article><article class="board-lane lane-waiting" data-lane="waiting"><header><h2>本轮待跑</h2><b id="laneWaitingCount">0</b><small>已排进这一轮，按 run 自己的顺序</small></header><div class="board-cards" data-drop="waiting"></div></article><article class="board-lane" data-lane="done"><header><h2>已完成</h2><b id="laneDoneCount">0</b><small>对当前题面有有效结论<br/>未评/作废不算完成</small></header><div class="board-cards" data-drop="done"></div></article></div>
+            <p class="board-foot" id="boardFoot">正在读取看板…</p>
+          </section>
+          <section class="view" id="view-history"><div class="view-header"><div><p class="kicker">RUN ARCHIVE / LOCAL</p><h1>评测历史</h1><p class="lede">完整 run、冒烟测试和中断记录集中展示；中断 run 可从缺失题继续，控制台可按题重跑。</p></div><button class="filter-button" id="refreshHistory">↻ 刷新记录</button></div><div class="history-metrics" id="historyMetrics"><article><span>RUNS</span><strong>—</strong><small>运行目录</small></article><article><span>COMPLETED</span><strong>—</strong><small>完整执行</small></article><article><span>INTERRUPTED</span><strong>—</strong><small>中断记录</small></article><article><span>EXECUTIONS</span><strong>—</strong><small>模型执行</small></article></div><div class="panel full-panel history-panel"><div class="history-toolbar"><span id="historyUpdated">正在读取 runs/…</span><div class="history-legend"><span><i class="history-dot completed"></i>完成</span><span><i class="history-dot interrupted"></i>中断</span></div></div><div class="table-scroll"><table class="history-table"><thead><tr><th>时间 / RUN</th><th>模型</th><th>状态</th><th>进度</th><th>通过率</th><th>平均 TOKENS</th><th>平均耗时</th><th>操作</th></tr></thead><tbody id="historyTable"><tr class="loading-row"><td colspan="8"><span class="spinner"></span> 正在载入历史记录…</td></tr></tbody></table></div></div></section>
+
+          <section class="view" id="view-leaderboard"><div class="view-header"><div><p class="kicker">MODEL INDEX / WEIGHTED</p><h1>模型排名</h1><p class="lede">按已入库完整 run 的任务级加权通过率排序；同时展示样本覆盖、速度与 token 成本，避免只看单次小样本。</p></div><div class="ranking-header-side"><div class="ranking-tier-switch" id="rankingTierSwitch" role="tablist" aria-label="排名口径"><button type="button" class="tier-btn selected" data-tier="current" role="tab" aria-selected="true">当前题面 <em id="tierCountCurrent">—</em></button><button type="button" class="tier-btn" data-tier="historical" role="tab" aria-selected="false">历史快照 <em id="tierCountHistorical">—</em></button></div><span class="ranking-rule">RATE ↓ · COVERAGE ↓ · TOKENS ↑</span></div></div><div class="podium-grid" id="podiumGrid"><article class="podium-loading"><span class="spinner"></span> 正在计算排名…</article></div><div class="panel full-panel ranking-panel"><div class="panel-head"><div><p class="panel-kicker">ALL MODELS</p><h2>完整排名</h2></div><span class="tiny-note">COMPLETED RUNS ONLY</span></div><div class="table-scroll"><table class="ranking-table"><thead><tr><th>排名</th><th>模型</th><th>加权通过率</th><th>通过 / 样本</th><th>完整 RUNS</th><th>平均 TOKENS</th><th>成功平均步数</th><th>平均耗时</th><th>最近评测</th><th>操作</th></tr></thead><tbody id="rankingTable"></tbody></table></div></div></section>
+
+        </div>
+      </main>
+    </div>
+    <div class="run-layer" id="runDialog" aria-hidden="true">
+      <button class="run-backdrop" data-close-run aria-label="关闭评测面板"></button>
+      <section class="run-console" role="dialog" aria-modal="true" aria-labelledby="runDialogTitle">
+        <header class="run-head">
+          <div><span class="run-eyebrow"><i></i> RUNNER · 本地 / 云端</span><h2 id="runDialogTitle">发起新评测</h2><p>使用当前项目配置启动真实评测进程。</p></div>
+          <button class="drawer-close" data-close-run aria-label="关闭">×</button>
+        </header>
+        <div class="run-setup" id="runSetup">
+          <div class="runner-health" id="runnerHealth"><span class="spinner"></span><div><b>正在连接本地 Runner</b><small>检查 API 和任务目录…</small></div></div>
+          <form id="runForm" hidden>
+            <fieldset class="location-field">
+              <legend>运行位置</legend>
+              <div class="location-options" id="locationOptions">
+                <label><input type="radio" name="location" value="local" checked><span><b>本地</b><small>只连回环地址上的推理服务，用本地连接配置的地址与密钥</small></span></label>
+                <label><input type="radio" name="location" value="cloud"><span><b>云端</b><small>连外部 API（小米等），用云端连接配置的地址与密钥</small></span></label>
+              </div>
+              <small id="locationHint"></small>
+            </fieldset>
+            <div class="run-field-grid">
+              <label class="run-field"><span>模型名称 / 排名标识</span><input id="runModelName" name="modelName" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,63}" placeholder="例如 Qwen3-30B-A3B-Q4_K_M"><small>写入结果目录、历史记录和排行榜</small></label>
+              <label class="run-field"><span>连接配置</span><select id="runModel" name="profile" required></select><small id="modelEndpoint"></small></label>
+              <label class="run-field"><span>API Model ID</span><input id="runApiModel" name="apiModel" required maxlength="160" placeholder="local"><small>发送到 OpenAI 兼容接口的 model 字段</small></label>
+              <label class="run-field"><span>任务范围</span><select id="runScope" name="scope" required></select><small id="scopeHint"></small></label>
+              <label class="run-field"><span>单次响应最大 TOKEN</span><input id="runMaxTokens" name="maxOutputTokens" type="number" min="256" max="262144" step="1" value="16384" required><small>允许范围 256–262144</small></label>
+            <label class="run-field"><span>模型请求超时</span><div class="number-suffix"><input id="runRequestTimeout" name="requestTimeoutSeconds" type="number" min="10" max="3600" step="1" value="900" required><b>SECONDS</b></div><small>单次 HTTP 请求，允许 10–3600 秒</small></label>
+            </div>
+            <fieldset class="jobs-field"><legend>并发任务数</legend><div class="job-options" id="jobOptions"></div><small id="jobsHint">同一时刻最多运行的题数；本地推理端点上限 4，外部 API 可到 16。</small></fieldset>
+            <fieldset class="external-field cloud-field">
+              <legend>云端端点</legend>
+              <p class="external-note">只在「云端」出现。留空就用云端连接配置自带的地址与密钥；要临时指别的端点再填这三项。本地那轮永远读不到这里的东西。</p>
+              <div class="run-field-grid">
+                <label class="run-field"><span>端点地址</span><input id="runBaseUrl" name="baseUrl" type="url" maxlength="300" placeholder="https://api.example.com/v1" autocomplete="off" spellcheck="false"><small>要写全协议与 /v1 前缀；填了它会覆盖云端连接配置里的地址</small></label>
+                <label class="run-field"><span>API KEY</span><input id="runApiKey" name="apiKey" type="password" maxlength="400" placeholder="sk-…" autocomplete="off" spellcheck="false"><small>只注入本次运行的子进程：不进命令行、不写盘、不记忆，刷新即清空</small></label>
+                <label class="run-field"><span>协议</span><select id="runWireApi" name="wireApi"><option value="">跟随连接配置</option><option value="chat">chat · /chat/completions</option><option value="responses">responses · /responses</option></select><small id="wireApiHint"></small></label>
+              </div>
+              <small class="external-state" id="externalState"></small>
+            </fieldset>
+            <fieldset class="jobs-field judge-field">
+              <legend>LLM 裁判（可选）</legend>
+              <div class="run-field-grid">
+                <label class="run-field"><span>裁判档案 / 尺子</span><select id="runJudge" name="judge"></select><small id="judgeHint"></small></label>
+                <p class="external-note" id="judgeNote"></p>
+              </div>
+            </fieldset>
+            <div class="launch-summary"><span>将启动</span><strong id="launchSummary">— tasks × 1 model</strong><code id="launchCommand">python3 cli.py run …</code></div>
+            <p class="run-error" id="runError" role="alert"></p>
+            <button class="launch-button" id="launchButton" type="submit"><span>▶</span> 启动评测</button>
+          </form>
+        </div>
+        <div class="run-monitor" id="runMonitor" hidden>
+          <div class="monitor-title"><div><span class="monitor-status" id="monitorStatus"><i></i> RUNNING</span><h3 id="monitorRunId">web-run</h3></div><span class="monitor-clock" id="monitorClock">00:00</span></div>
+          <div class="run-progress"><span id="runProgressBar"></span></div>
+          <div class="monitor-stats"><div><span>完成</span><strong id="monitorCompleted">0 / —</strong></div><div><span>通过</span><strong class="good" id="monitorPassed">0</strong></div><div><span>失败</span><strong class="bad" id="monitorFailed">0</strong></div><div><span>并发</span><strong id="monitorJobs">4</strong></div></div>
+          <div class="active-tasks"><span>ACTIVE TASKS</span><p id="activeTasks">等待 worker 接收任务…</p></div>
+          <div class="log-head"><span>PROCESS OUTPUT</span><button id="clearLog" type="button">清空显示</button></div>
+          <pre class="run-log" id="runLog" aria-live="polite"></pre>
+          <div class="monitor-actions"><span id="monitorOutput"></span><a class="secondary-button console-button" href="console.html">打开独立控制台 ↗</a><button class="danger-button" id="cancelRun" type="button">停止评测</button><button class="secondary-button" id="newRun" type="button" hidden>发起另一轮</button><button class="secondary-button" id="refreshReport" type="button" hidden>刷新报告页</button></div>
+        </div>
+      </section>
+    </div>
+    <div class="drawer-layer" id="taskDrawer" aria-hidden="true">
+      <button class="drawer-backdrop" data-close-drawer aria-label="关闭题目详情"></button>
+      <aside class="task-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+        <header class="drawer-head">
+          <div class="drawer-identity">
+            <span class="drawer-eyebrow" id="drawerEyebrow">TASK DETAIL</span>
+            <h2 id="drawerTitle">题目详情</h2>
+            <code id="drawerTaskId"></code>
+          </div>
+          <button class="drawer-close" data-close-drawer aria-label="关闭">×</button>
+        </header>
+        <div class="drawer-statusline" id="drawerStatusline"></div>
+        <nav class="drawer-tabs" aria-label="详情区域">
+          <button class="active" data-detail-tab="overview">概览</button>
+          <button data-detail-tab="prompt">题面</button>
+          <button data-detail-tab="verifier">判定条件 <span id="criteriaCount"></span></button>
+          <button data-detail-tab="result">运行结果</button>
+        </nav>
+        <div class="drawer-body" id="drawerBody"></div>
+        <footer class="drawer-foot">
+          <span>ESC 关闭 · ← → 切换任务</span>
+          <div><button id="previousTask">← 上一题</button><button id="nextTask">下一题 →</button></div>
+        </footer>
+      </aside>
+    </div>
+    <div class="drawer-layer" id="boardDrawer" aria-hidden="true">
+      <button class="drawer-backdrop" data-close-board aria-label="关闭任务看板详情"></button>
+      <aside class="task-drawer" role="dialog" aria-modal="true" aria-labelledby="boardDrawerTitle">
+        <header class="drawer-head">
+          <div class="drawer-identity">
+            <span class="drawer-eyebrow" id="boardDrawerEyebrow">JOB DETAIL</span>
+            <h2 id="boardDrawerTitle">任务运行详情</h2>
+            <code id="boardDrawerTaskId"></code>
+          </div>
+          <div class="board-drawer-move"><span>移到</span><button type="button" data-move-lane="queue">排队</button><button type="button" data-move-lane="done">已完成</button></div>
+          <button class="drawer-close" data-close-board aria-label="关闭">×</button>
+        </header>
+        <div class="drawer-statusline" id="boardDrawerStatus"></div>
+        <div class="drawer-body" id="boardDrawerBody"></div>
+        <footer class="drawer-foot">
+          <span>逐次运行记录点开展开后仍可看题面与判定条件</span>
+          <div><button id="boardDrawerSpec" type="button">题面与判定条件 →</button></div>
+        </footer>
+      </aside>
+    </div>
+    <div class="model-drawer-layer" id="modelDrawer" aria-hidden="true">
+      <button class="model-drawer-backdrop" data-close-model aria-label="关闭模型详情"></button>
+      <aside class="model-drawer" role="dialog" aria-modal="true" aria-labelledby="modelDrawerTitle">
+        <header class="model-drawer-head">
+          <div><span>MODEL PERFORMANCE DOSSIER</span><h2 id="modelDrawerTitle">模型详情</h2><code id="modelDrawerRank">RANK —</code></div>
+          <div class="model-drawer-actions"><button class="model-delete-button" id="deleteActiveModel" type="button">删除评测数据</button><button class="drawer-close" data-close-model aria-label="关闭">×</button></div>
+        </header>
+        <div class="model-drawer-body" id="modelDrawerBody"></div>
+      </aside>
+    </div>
+    <div class="notice-panel" id="noticePanel" role="dialog" aria-label="本轮重点信号" hidden>
+      <header><span>SIGNALS · 本轮重点</span><button id="noticeClose" type="button" aria-label="关闭">×</button></header>
+      <div class="notice-body" id="noticeBody"></div>
+      <p class="notice-foot">只统计当前 suite 里真实存在的问题；没异常就不占位。</p>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script src="data.js"></script>
+    <script src="app.js?v=2"></script>
+    <script src="board.js"></script>
+  </body>
+</html>

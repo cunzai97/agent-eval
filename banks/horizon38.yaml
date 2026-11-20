@@ -1,0 +1,88 @@
+name: horizon38
+description: 38 题快卷（难优先）：无 rubric、n>=20、中位 <=300 s 的 39 道快题按历史通过率从低到高取 35，再加 2026-10-28 新题里首轮 <=300 s 的 3 道（40 步/64k tok/720 s，确定性判分）。慢题无论多难、多新一律不进：历史慢题 8 道 + 新题 2 道超时（见 excluded_slow / excluded_slow_new）。难而不慢是唯一标准；要凑满 40 需再开发 2 道难且快的题。生成于 2026-10-29
+source: runs/_HISTORY.jsonl 每模型每任务最近一次 graded 尝试；新题取自 run horizon-new5-pi-20261029
+selection:
+  rule: "无 rubric；n>=20；中位耗时<=300 s；历史题按通过率升序取前 35；新题只取首轮 <=300 s 的 3 道"
+  excluded_slow: [expert-placement-001, sched-dualgpu-001, debug-stacktrace-010, debug-stacktrace-008, fix-cancel-001, script-loopguard-001, script-dev-007, fix-failing-test-009]
+  excluded_slow_new: [fix-config-stack-001（416.6 s）, fix-retry-scheduler-001（340.7 s）]
+  excluded_rubric: [data-pipeline-007, data-pipeline-008, data-pipeline-009, memory-loop-002, memory-loop-004, memory-loop-001, memory-loop-003]
+  excluded_small_n: [locate-leak-001, locate-prefix-001, spec-decode-001, quant-policy-001, bubble-split-001, crash-matrix-001, fix-cap-001, fix-threshold-001]
+  note: "快题池共 39 道，取其中 35；切掉的 4 道是池里最易的（fix-failing-test-006 96%、debug-stacktrace-009 97%、debug-stacktrace-003 98%、clean-aggregate-001 98%）。新 5 题目前各只有 1 个样本（pi Q4_K_M 100%），其中 2 道 341/417 s 超出上限被剔（既慢又不难），余 3 道 50-188 s。38 题历史中位合计约 1.36 h（jobs=1，未计重试）。memory-loop 只剩 1 道非 rubric 快题。"
+tasks:
+  - liberty-extract-001
+  - fix-failing-test-008
+  - locate-bug-001
+  - fix-failing-test-002
+  - fix-failing-test-003
+  - debug-stacktrace-001
+  - data-pipeline-006
+  - script-dev-006
+  - script-dev-002
+  - script-dev-005
+  - debug-stacktrace-005
+  - locate-bug-008
+  - script-dev-003
+  - script-dev-008
+  - data-pipeline-004
+  - debug-stacktrace-002
+  - locate-bug-006
+  - data-pipeline-003
+  - fix-failing-test-007
+  - locate-bug-007
+  - locate-bug-004
+  - memory-loop-005
+  - data-pipeline-005
+  - fix-failing-test-004
+  - write-cli-001
+  - clean-aggregate-002
+  - fix-failing-test-005
+  - script-dev-004
+  - fix-failing-test-001
+  - debug-stacktrace-004
+  - debug-stacktrace-006
+  - locate-bug-002
+  - debug-stacktrace-007
+  - locate-bug-003
+  - locate-bug-005
+  - fix-dep-graph-001
+  - fix-stream-window-001
+  - fix-migration-flow-001
+detail:
+  liberty-extract-001: 5% (3/64); median 298s
+  fix-failing-test-008: 11% (6/56); median 265s
+  locate-bug-001: 42% (24/57); median 45s
+  fix-failing-test-002: 66% (39/59); median 144s
+  fix-failing-test-003: 66% (39/59); median 245s
+  debug-stacktrace-001: 69% (43/62); median 126s
+  data-pipeline-006: 73% (47/64); median 170s
+  script-dev-006: 74% (42/57); median 206s
+  script-dev-002: 74% (43/58); median 231s
+  script-dev-005: 75% (43/57); median 286s
+  debug-stacktrace-005: 78% (47/60); median 91s
+  locate-bug-008: 79% (22/28); median 104s
+  script-dev-003: 79% (46/58); median 186s
+  script-dev-008: 82% (23/28); median 65s
+  data-pipeline-004: 85% (47/55); median 77s
+  debug-stacktrace-002: 87% (48/55); median 60s
+  locate-bug-006: 88% (49/56); median 50s
+  data-pipeline-003: 88% (50/57); median 131s
+  fix-failing-test-007: 88% (50/57); median 172s
+  locate-bug-007: 89% (54/61); median 54s
+  locate-bug-004: 89% (50/56); median 69s
+  memory-loop-005: 89% (25/28); median 86s
+  data-pipeline-005: 89% (50/56); median 91s
+  fix-failing-test-004: 89% (51/57); median 261s
+  write-cli-001: 90% (45/50); median 165s
+  clean-aggregate-002: 91% (48/53); median 102s
+  fix-failing-test-005: 91% (51/56); median 75s
+  script-dev-004: 92% (47/51); median 134s
+  fix-failing-test-001: 92% (48/52); median 82s
+  debug-stacktrace-004: 93% (50/54); median 87s
+  debug-stacktrace-006: 93% (50/54); median 116s
+  locate-bug-002: 94% (49/52); median 49s
+  debug-stacktrace-007: 94% (50/53); median 166s
+  locate-bug-003: 95% (53/56); median 50s
+  locate-bug-005: 96% (49/51); median 52s
+  fix-dep-graph-001: NEW 2026-10-28; 40 步/64k tok/720 s; 确定性判分; n=1（pi Q4_K_M 100%，首轮 187.6s）
+  fix-stream-window-001: NEW 2026-10-28; 40 步/64k tok/720 s; 确定性判分; n=1（pi Q4_K_M 100%，首轮 59.7s）
+  fix-migration-flow-001: NEW 2026-10-28; 40 步/64k tok/720 s; 确定性判分; n=1（pi Q4_K_M 100%，首轮 50.3s）

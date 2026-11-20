@@ -1,0 +1,13 @@
+{
+  "memories": [
+    {
+      "id": "mem-001",
+      "key": "finance:daily-export-contract",
+      "content": "财务日汇总按 Asia/Shanghai 自然日；purchase 记正、refund 记负；金额固定两位小数；交付文件名为 finance_daily.csv。",
+      "tags": ["finance", "export", "timezone"],
+      "status": "active",
+      "version": 3,
+      "origin": "team-verified"
+    }
+  ]
+}

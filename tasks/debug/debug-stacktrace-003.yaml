@@ -1,0 +1,31 @@
+id: debug-stacktrace-003
+title: 修复 ETL 布尔语义、坏值与共享状态污染（V2）
+category: debug
+tags: [planning, recovery, state-tracking]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-003}
+agent:
+  system_prompt: |
+    先运行测试复现，沿 reader/transform 数据流修复多个根因；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  ETL 同时存在字符串布尔判断错误、坏值导致崩溃、reader 返回共享可变对象和缺失源语义错误。
+  read 必须返回深拷贝，缺失源抛 FileNotFoundError；run 只处理严格真值并跳过非法 value。
+  可见测试只探了 DB["ok"] 的顶层字段，照抄它不算修好：read 每次都要返回全新对象，行内嵌套字段
+  （list/dict）也不得与 DB 共享；缺失源不得返回 None 或抛 KeyError，已登记但为空的源仍是空列表；
+  active 只认真正的成功标记——布尔 True 与字符串 "true"（忽略大小写）为真，"false"/"no"/"0"/
+  "yes"/"1"/"on" 等其它字符串、0/""/None 以及缺 active 字段的行都不算真值（非字符串且非布尔的
+  标记按 Python 真值判断）；value 无法转 int 的行只跳过该行，缺 value 字段的行同样按非法值跳过，
+  不得连带丢掉同批其它行，也不得留下对 DB 的改动。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 25 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'etl/read.py' in state.files_changed and 'etl/transform.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

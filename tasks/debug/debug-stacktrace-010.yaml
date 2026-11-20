@@ -1,0 +1,64 @@
+id: debug-stacktrace-010
+title: 快慢两条路径必须逐 symbol 一致：预取深度与前高口径的双重偏差
+category: debug
+tags: [planning, recovery, state-tracking, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-010}
+agent:
+  system_prompt: |
+    你是本地代码仓的维护工程师。先用 run_tests 建立基线，再读 README、日志与源码定位偏差，
+    改完源码必须再用 run_tests 复跑验证。禁止修改 tests/，完成后调用 done。
+    改之前先想清楚"判据是什么"：可见测试全绿不等于故障修好了。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  2025-09-17 与 09-18 连续两天，发布闸门 breadth.report.publish() 把出数拦了下来（logs/2025-09-publish.log）：
+  慢路径 breadth.naive 说全市场有 4 只标的刷新了 250 日前高，快路径 breadth.fastscan 却说 0 只，
+  而且快路径给每个 symbol 的判定都是 None。README 把"两条独立路径逐 symbol 一致"写成了硬不变量。
+
+  可见测试现在 9 条全绿，**修完之后它们也必须 9 条全绿**——它们只钉住慢路径口径、合成数据的形状和
+  公开接口，所以它们不是判据。真正的判据是 README 的发布不变量必须成立：
+  naive.scan_all() == fastscan.scan_all()（逐 symbol 完全一致）、report.diff() == []、
+  report.publish()["consistent"] is True。
+
+  要修的是快路径：慢路径、breadth/window.py 的权威口径以及 bars.py 里的合成序列都是对的，
+  不要改数据或改慢路径来"让两条路径一致"。必须同时满足下面几条：
+  1. 快路径仍然要通过 bars.stream() 预取（全市场 5000+ 标的，不允许每个都拉整段历史），
+     不得改成 full_series、不得调用 naive/window 来对齐结果；预取的根数必须撑得住
+     "报告日之前 250 根前值 + 报告日自身"这个长度。
+  2. bars.HISTORY_BARS 是 stream() 的默认预取根数，现在还是旧粗筛留下的 80，这本身就是隐患：
+     任何按默认值取数的调用方都算不出 250 根窗口。把它改到不小于 LOOKBACK + 1；
+     只在调用处临时传一个大 limit、把这个错误的模块级默认值留在原处，不算修完。
+  3. 命中口径：报告日收盘必须**严格大于**窗口内最大值，持平不算刷新（MEDX/ELEV 必须 False）；
+     报告日之前不足 250 根时返回 None，该标的不进统计（MICRO 必须 None，不得为了"有输出"
+     把预热期当成命中或未命中）。
+  4. 窗口必须恰好是之前的 250 根，不多不少：高点落在窗口之外一根（HDIX）不得压住报告日的命中，
+     落在窗口最老一根上的高点必须仍然压得住（RAIL 必须 False）。
+  5. 公开接口的名字、参数默认值形式与返回类型都不许变：bars.SYMBOLS/BAR_LENGTHS/LOOKBACK/
+     HISTORY_BARS/full_series/stream、window.LOOKBACK/prior_window/new_high_at、
+     naive.scan_symbol/scan_all/hits、fastscan.NewHighTracker(lookback=LOOKBACK)/push/feed、
+     fastscan.scan_symbol/scan_all/hits、report.diff/publish。
+     合成序列（_walk/_shape/ROLES 的根数与角色）不得改动。
+  逐条自己构造数据验证（例如把 window 与 tracker 在任意输入上逐根对拍），不要只跑一遍可见测试就收工；
+  不得修改 tests/ 与 logs/，完成后 done。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 8 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "len(state.files_changed) >= 2"
+  - type: state_assert
+    expr: "'breadth/fastscan.py' in state.files_changed"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: tool_used
+    name: run_tests
+  - type: order_of
+    tools: [edit_file, run_tests]
+  - type: no_repeat_failure
+    max_repeat: 1
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

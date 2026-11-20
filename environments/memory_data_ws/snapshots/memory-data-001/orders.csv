@@ -1,0 +1,8 @@
+order_id,event_time,updated_at,type,status,amount
+o1,2025-01-01T15:30:00Z,2025-01-01T15:31:00Z,purchase,completed,90
+o1,2025-01-01T15:30:00Z,2025-01-01T15:32:00Z,purchase,completed,100
+o2,2025-01-01T16:30:00Z,2025-01-01T16:31:00Z,refund,completed,20
+o3,2025-01-02T02:00:00+08:00,2025-01-01T18:01:00Z,purchase,completed,50
+o3,2025-01-02T02:00:00+08:00,2025-01-01T18:02:00Z,purchase,cancelled,50
+o4,2025-01-02T09:00:00+08:00,2025-01-02T01:01:00Z,purchase,completed,bad
+o5,2025-01-02T10:00:00+08:00,2025-01-02T02:01:00Z,chargeback,completed,30

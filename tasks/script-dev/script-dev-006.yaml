@@ -1,0 +1,45 @@
+id: script-dev-006
+title: 编写带时区、去重与聚合的审计日志 CLI
+category: script-dev
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: shell_ws, snapshot: script-006}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。实现通用 CLI，并用两套输入真实运行验证。
+    不得修改任何预置输入文件；完成后调用 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  实现 audit.py（仅用 Python 标准库），用法：
+    python audit.py --log <jsonl> --users <csv> --since <ISO-8601> --out <csv>
+
+  JSONL 每条合法记录含 request_id、user_id、ts、path、status。处理规则：
+  1. 跳过无法解析的 JSON、缺字段、非法时间或非法 status；status 接受 JSON 整数或只含十进制数字的字符串，拒绝布尔值和其他格式；
+     五个字段都必须存在且 request_id、user_id、ts、path 必须是字符串，为 null 或类型不符（如 path 是数字）同样按非法记录跳过；
+     一条坏记录只跳过，不得让 CLI 崩溃；ISO-8601 的 Z 和时区偏移都要支持，并按 UTC 比较；
+  2. 先按 request_id 去重（只在规则 1 保留下来的记录之间比较），保留 ts 最晚的记录，再保留 ts >= since 且 status >= 400 的记录；
+  3. users CSV 按 user_id 关联 role，找不到时填 unknown；path 去掉 ? 及后面的查询串；
+  4. 按 role,path 聚合 error_count 和 unique_users；
+  5. 输出列严格为 role,path,error_count,unique_users，按 error_count 降序，再按 role、path 升序。
+
+  必须用同一个 audit.py 依次运行：
+    python3 audit.py --log access.jsonl --users users.csv --since 2025-01-01T00:00:00Z --out out/audit.csv
+    python3 audit.py --log edge.jsonl --users users.csv --since 2025-01-01T00:00:00Z --out out/audit_edge.csv
+
+  两次运行均成功后调用 done。禁止修改 access.jsonl、edge.jsonl、users.csv。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.audit.columns == ['role', 'path', 'error_count', 'unique_users'] and state.csv.audit.rows == [['member', '/api/x', '2', '2'], ['member', '/quota', '1', '1'], ['unknown', '/login', '1', '1']]"
+  - type: state_assert
+    expr: "state.csv.audit_edge.columns == ['role', 'path', 'error_count', 'unique_users'] and state.csv.audit_edge.rows == [['admin', '/new', '1', '1'], ['unknown', '/z', '1', '1']]"
+  - type: state_assert
+    expr: "state.csv.audit.row_count == 3 and state.csv.audit_edge.row_count == 2 and len(state.modified) == 0"
+  - type: state_assert
+    expr: "'audit.py' in state.files"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 8 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash
+  - type: order_of
+    tools: [write_file, run_bash, run_bash]

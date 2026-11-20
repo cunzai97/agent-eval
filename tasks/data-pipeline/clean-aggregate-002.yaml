@@ -1,0 +1,29 @@
+id: clean-aggregate-002
+title: 员工版本清洗、分组中位数填补与汇总（V2）
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: medium
+environment: {name: data_ws, snapshot: data-002}
+agent:
+  system_prompt: |
+    你是资深数据工程师。编写并运行 Python 脚本处理数据；不得修改输入，完成后 done。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 employees.csv，输出 out/dept_summary.csv：
+  1. 按 id 保留 updated_at 最晚版本，再仅保留 active=true；
+  2. salary 去掉 $ 和千分位逗号；非缺失但无法解析或 <=0 的员工整行排除；
+  3. 对 salary 缺失者，用其 dept 中其余有效员工 salary 的中位数填补；部门没有有效值则排除；
+  4. 按 dept 聚合 headcount、total_salary、avg_salary，金额固定两位小数；
+  5. 列严格为 dept,headcount,total_salary,avg_salary，按 dept 升序。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.dept_summary.columns == ['dept', 'headcount', 'total_salary', 'avg_salary']"
+  - type: state_assert
+    expr: "state.outputs.dept_summary.rows == [['eng', '3', '4500.00', '1500.00'], ['sales', '3', '3000.00', '1000.00']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [write_file, run_python]

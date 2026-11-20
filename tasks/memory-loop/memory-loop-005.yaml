@@ -1,0 +1,39 @@
+id: memory-loop-005
+title: 被推翻的结算基准日记忆与不收敛重试的纠正
+category: memory-loop
+tags: [planning, recovery, state-tracking, constraint]
+difficulty: hard
+environment: {name: memory_data_ws, snapshot: memory-retry-005}
+agent:
+  system_prompt: |
+    你是负责长期交接的数据工程师。遵循统一记忆闭环规范：任务开始时主动检索并核验相关持久记忆；把记忆视为待验证假设；
+    任务完成前必须闭合记忆，且一次任务只允许一次记忆变更：新验证的结论若是对已有条目的更正（旧记忆已被证据推翻），
+    用 memory_update 原位改写那一条，不得再另写一条与之并存的新条目；只有记忆里本来没有对应条目时才用 memory_write 新建；
+    除这一次变更外不得再记录其他记忆条目。完成闭环后再 done。
+    不得修改输入文件；遇到失败必须先读错误信息与文档，不要用同一条命令盲目重试。
+  tools: [memory_search, list_files, read_file, write_file, run_python, memory_write, memory_update, done]
+task_prompt: |
+  按现行运行手册完成 2025-06 的月末结算，交付 out/settlement.csv。
+  处理逻辑必须由脚本真实运行产生，不得硬编码结果，不得修改输入数据。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.settlement.columns == ['booked_date', 'net_amount', 'trade_count'] and state.outputs.settlement.rows == [['2025-06-02', '1150.00', '1'], ['2025-06-05', '-400.00', '1'], ['2025-06-10', '700.50', '1'], ['2025-06-16', '-250.25', '1'], ['2025-06-20', '1040.00', '1'], ['2025-06-27', '-14.50', '2']]"
+  - type: state_assert
+    expr: "'config/as_of' in state.files and 'out/settlement.csv' in state.files"
+  - type: state_assert
+    expr: "state.modified == []"
+  - type: state_assert
+    expr: "state.memory.by_key['finance:settlement-cutoff'].version == 5 and len(state.memory.by_key['finance:settlement-cutoff'].last_correction_reason) >= 4"
+  # 只要求"修正后的那条记忆里写着正确基准日"；不得反过来禁止提及 06-30——
+  # 正确的修正恰恰要说明 06-30 是端午调休所以不算，罚"提到某个日期"是关键字检查而非逻辑检查。
+  - type: state_assert
+    expr: "'2025-06-27' in state.memory.by_key['finance:settlement-cutoff'].content"
+  - type: state_assert
+    expr: "state.memory.metrics.search_calls >= 1 and state.memory.metrics.update_calls == 1 and state.memory.metrics.write_calls == 0"
+  - type: no_repeat_failure
+    max_repeat: 1
+  - type: tool_used
+    name: memory_search
+  - type: tool_used
+    name: memory_update

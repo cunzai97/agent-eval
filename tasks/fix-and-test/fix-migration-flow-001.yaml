@@ -1,0 +1,41 @@
+id: fix-migration-flow-001
+title: 修复迁移发现排序、待执行计划与幂等应用
+category: fix-and-test
+tags: [planning, state-tracking, generalization, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: migration_flow}
+agent:
+  system_prompt: |
+    你是数据库平台工程师。先运行测试复现，沿 registry → runner 调用链修复根因；
+    保持公开接口，禁止修改 tests/，改完复跑测试后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  修复 migratekit/ 的两个模块，只用标准库。
+
+  1. registry.discover(files)：files 是文件名或相对路径列表。合法名形如 "0007_add_users.sql"：
+     数字前缀、下划线、小写字母/数字/下划线、.sql 后缀。返回 [(version:int, name:str)]，name 只含文件名，
+     按 version 升序。重复 version、非法命名抛 ValueError。
+  2. runner.checksum(sql)：返回 utf-8 编码内容的 sha256 十六进制串。
+  3. runner.plan(applied, migrations)：applied 为 {name: checksum}，返回按入参顺序且 name 不在 applied 中的迁移列表；
+     applied 里多出的未知条目忽略。
+  4. runner.apply(state, migrations, load, execute)：state 为 {"applied": {...}}，必须原地更新。
+     - 未应用：调用 execute(sql)，成功后把 name → checksum 写入 state["applied"]，并记入 report["applied"]。
+     - 已应用且 checksum 相同：不执行，记入 report["skipped"]。
+     - 已应用但 checksum 不同：抛 ChecksumMismatch，且不执行该迁移。
+     - execute 抛异常：该迁移不写入 state，report["failed"] 记该 name，后续迁移不再执行。
+     返回 {"applied": [...], "skipped": [...], "failed": name 或 None}，两个列表保持执行顺序。
+     state 缺少 "applied" 键时初始化为空字典；空 migrations 返回空报告。
+
+  直接调用公开函数的边界行为也属于契约。保持函数签名，禁止修改测试。
+budget: {max_steps: 40, max_tokens: 64000, timeout_s: 720}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 25 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['migratekit/registry.py', 'migratekit/runner.py'])"
+  - type: order_of
+    tools: [edit_file, run_tests]

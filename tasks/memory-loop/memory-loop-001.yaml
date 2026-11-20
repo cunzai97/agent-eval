@@ -1,0 +1,45 @@
+id: memory-loop-001
+title: 财务导出契约回忆与去重口径主动沉淀
+category: memory-loop
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: memory_data_ws, snapshot: memory-data-001}
+agent:
+  system_prompt: |
+    你是负责长期交接的数据工程师。遵循统一记忆闭环规范：任务开始时主动检索并核验相关持久记忆；把记忆视为待验证假设；
+    任务完成前必须闭合记忆，且一次任务只允许一次记忆变更：新验证的结论若是对已有条目的更正（旧记忆已被证据推翻），
+    用 memory_update 原位改写那一条，不得再另写一条与之并存的新条目；只有记忆里本来没有对应条目时才用 memory_write 新建；
+    除这一次变更外不得再记录其他记忆条目。完成闭环后再 done。
+    不得修改输入文件，必须真实运行脚本。
+  tools: [memory_search, list_files, read_file, write_file, run_python, memory_write, memory_update, done]
+task_prompt: |
+  处理版本化 orders.csv，按团队已经生效的财务日汇总约定生成正式交付文件。最新版本为 cancelled 的订单应整体排除；
+  completed 中只接受非负数字金额与 purchase/refund。输出列必须是 date,net_amount,transaction_count，按 date 升序。
+  处理逻辑写入脚本并运行，不得硬编码结果或修改输入。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.finance_daily.columns == ['date', 'net_amount', 'transaction_count'] and state.outputs.finance_daily.rows == [['2025-01-01', '100.00', '1'], ['2025-01-02', '-20.00', '1']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: state_assert
+    expr: "any(item.get('origin') in ['agent', 'agent-correction'] and all(field in item.content for field in ['order_id', 'updated_at']) for item in state.memory.items)"
+  - type: state_assert
+    expr: "state.memory.metrics.search_calls >= 1 and state.memory.metrics.write_calls + state.memory.metrics.update_calls == 1"
+  - type: tool_used
+    name: memory_search
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [memory_search, write_file, run_python, done]
+# 保留裁判的唯一理由：数字与记忆的**来源**无法从终态判定——产物数字全对，可能是脚本算
+# 出来的，也可能是硬编码或对 read_file 片段的小样本估算。judge_id 把尺钉死在这里：
+# 换裁判档案=换评分标准，实跑与它不符时该次判定记『未评』。
+# N1（扰动输入后复算同一脚本）建成之后，这一档裁判就该被它替换掉并删除。
+judge_id: luna-6:gpt-6-luna
+rubric: |
+  维度：
+  - evidence_grounding：持久记忆是否建立在实际输入、生成脚本和输出核验之上。
+  - reuse_value：记忆是否清楚记录版本去重、cancelled 处理、purchase/refund 符号和输出口径，足以供未来同类任务复用。
+  - scope_control：是否避免把当前样例行硬编码成所谓通用记忆。
+  判定要求：三个维度均可靠为 pass；遗漏次要口径为 partial；未形成可复用记忆或与产物矛盾为 fail。

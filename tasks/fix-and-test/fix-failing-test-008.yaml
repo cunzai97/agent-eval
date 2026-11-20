@@ -1,0 +1,38 @@
+id: fix-failing-test-008
+title: 修复长对话 Checkpoint 链的保存、淘汰与恢复
+category: fix-and-test
+tags: [planning, recovery, state-tracking, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-008}
+agent:
+  system_prompt: |
+    你是推理服务缓存工程师。先复现，再修复源码并验证全部测试；不得修改 tests/，完成后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  长对话在工具调用后出现 checkpoint 激增、有效恢复点被挤掉以及相似 prompt 误恢复。请修复
+  checkpoint/ 与 server/ 的协作，同时保持公开接口：
+
+  - shared root 独立于普通 checkpoint 容量；普通点只允许在 message boundary 保存，发布前必须
+    排空该 sequence 的异步工作，无效边界不得产生排空副作用；
+  - checkpoint 的 position 必须与完整 identity token 数一致；重复身份不得重复保存；恢复只能使用
+    不长于请求的最长精确 token 前缀，普通点均不匹配时才尝试精确 root；
+  - 普通链容量满时，对 A/B/C 后到来的 D：若 B 到 C 小于 min_step，则用 D 替换 C；否则淘汰 A
+    并追加 D。该策略连续执行后仍需保持顺序和容量；
+  - 同一 conversation 的小幅回退不应反复序列化 leaf，只有 f_keep < 0.5 才保存；conversation
+    发生切换时仍要保存。
+
+  禁止通过 fingerprint 代替身份比较，禁止修改测试。
+budget: {max_steps: 42, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  - type: state_assert
+    expr: "state.hidden_tests.passed == state.hidden_tests.total and state.hidden_tests.total >= 5"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['checkpoint/chain.py', 'server/prompt_cache.py'])"
+  - type: tool_used
+    name: run_tests
+  - type: order_of
+    tools: [edit_file, run_tests]

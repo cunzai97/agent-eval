@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090c11" />
+    <title>Tracebench / Live Run Control</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="console.css" />
+  </head>
+  <body class="ops-body">
+    <a class="skip-link" href="#opsMain">跳到运行详情</a>
+    <header class="ops-topbar">
+      <a class="ops-brand" href="index.html"><span>TB</span><div><b>TRACEBENCH</b><small>LIVE RUN CONTROL</small></div></a>
+      <div class="ops-wire"><i></i><span>LOCAL RUNNER</span><b id="connectionState">CONNECTING</b></div>
+      <div class="ops-top-actions"><span id="lastUpdate">等待状态…</span><button id="opsThemeButton" class="ops-theme-button" type="button" title="切换亮色 / 暗色主题" aria-label="切换亮色 / 暗色主题">☼</button><a href="index.html">返回分析台 ↗</a></div>
+    </header>
+
+    <main class="ops-main" id="opsMain">
+      <nav class="ops-tabs" id="opsTabs" role="tablist" aria-label="控制台分页">
+        <button class="active" data-tab="live" role="tab" aria-selected="true"><span>实时输出</span><b id="tabLiveCount">0 栏</b><small>正在跑的题一题一栏，思考流与工具调用实时刷</small></button>
+        <button data-tab="board" role="tab" aria-selected="false"><span>任务看板</span><b>4 泳道</b><small>排队 / 在跑 / 本轮待跑 / 已完成</small></button>
+      </nav>
+      <div class="ops-page" data-page="live">
+      <section class="run-browser">
+        <div><span>RUN SELECTOR</span><b>打开历史运行，续跑缺失任务或按题重试</b></div>
+        <label><span>运行记录</span><select id="runSelector"><option value="">当前 Runner</option></select></label>
+        <button id="openSelectedRun" type="button">打开运行 →</button>
+      </section>
+
+      <section class="compat-banner" id="compatBanner" hidden>
+        <span>READ-ONLY</span>
+        <p><b>当前正在运行的是旧版 Runner。</b>实时详情可正常查看；为保护本轮评测，暂停控制会在本轮结束并重载服务后启用。</p>
+      </section>
+
+      <section class="ops-hero">
+        <div class="ops-identity">
+          <p>ACTIVE EVALUATION / <span id="runId">NO RUN</span></p>
+          <h1 id="modelName">等待本地 Runner</h1>
+          <div class="ops-meta"><span id="apiModel">API —</span><i></i><span id="runProfile">PROFILE —</span><i></i><span id="runPid">PID —</span></div>
+        </div>
+        <div class="ops-state-block">
+          <div class="ops-status running" id="runStatus"><i></i><span>CONNECTING</span></div>
+          <div class="ops-clock"><small>ACTIVE WALL TIME</small><strong id="elapsedClock">00:00</strong></div>
+        </div>
+        <div class="ops-controls">
+          <button class="control-button pause" id="pauseButton" disabled><span>Ⅱ</span><b>暂停</b><small>停在下一安全点</small></button>
+          <button class="control-button resume" id="resumeButton" hidden disabled><span>▶</span><b>继续</b><small>恢复全部 worker</small></button>
+          <button class="control-button continue" id="continueRunButton" hidden disabled><span>↻</span><b>继续缺失任务</b><small id="continueRunHint">从中断点恢复</small></button>
+          <button class="control-button stop" id="stopButton" disabled><span>■</span><b>停止</b><small>保留已完成结果</small></button>
+        </div>
+      </section>
+
+      <section class="ops-progress-panel">
+        <div class="ops-progress-copy"><span>SUITE PROGRESS</span><strong id="progressText">0 / 0</strong><em id="progressPercent">0%</em></div>
+        <div class="ops-progress"><span id="progressBar"></span><i id="progressMarker"></i></div>
+      </section>
+
+      <section class="ops-metrics">
+        <article><span>PASS</span><strong class="good" id="passedCount">0</strong><small id="passRate">0.0% pass rate</small></article>
+        <article><span>FAIL</span><strong class="bad" id="failedCount">0</strong><small id="failRate">0.0% fail rate</small></article>
+        <article><span>TOTAL TOKENS</span><strong id="tokenCount">0</strong><small id="avgTokens">0 avg / task</small></article>
+        <article><span>AVG. TASK TIME</span><strong id="avgTime">0s</strong><small id="tokenSpeed">0 tok/s accounted</small></article>
+        <article><span>WORKERS</span><strong id="workerCount">—</strong><small id="workerState">waiting</small></article>
+        <article><span>OUTPUT LIMIT</span><strong id="outputLimit">—</strong><small id="requestTimeout">— request timeout</small></article>
+      </section>
+
+      <section class="ops-panel stream-panel">
+        <header>
+          <div><span>LIVE STREAM</span><h2>实时思考流 · 一题一栏</h2></div>
+          <div class="stream-actions">
+            <span class="density-picker" title="展开密度：紧凑只看一行摘要，详细/全开让新的思考和工具内容自动展开">
+              <button type="button" data-density="compact">紧凑</button>
+              <button type="button" data-density="detail">详细</button>
+              <button type="button" data-density="raw">全开</button>
+            </span>
+            <em id="activeCount">0 ACTIVE</em>
+            <span id="streamSummary">等待事件…</span>
+            <label><input type="checkbox" id="streamFollow" checked /> 自动滚到底</label>
+            <label><input type="checkbox" id="streamReasoning" checked /> 显示思考</label>
+            <button id="clearStream" type="button">清空本屏</button>
+          </div>
+        </header>
+        <div class="stream-grid" id="streamGrid"><div class="empty-signal">等待任务进入 worker…</div></div>
+        <p class="stream-foot" id="streamFoot">思考、工具调用、工具结果都从引擎的流式回调出来；逐字文本按 60 字左右合并一条，不拖慢跑批。</p>
+      </section>
+
+      <section class="ops-panel config-panel">
+          <header><div><span>RUNTIME ENVELOPE</span><h2>本轮模型配置</h2></div><em id="judgeState">JUDGE OFF</em></header>
+          <dl class="runtime-list">
+            <div><dt>ENDPOINT</dt><dd id="endpointValue">—</dd></div>
+            <div><dt>API MODEL</dt><dd id="apiModelValue">—</dd></div>
+            <div><dt>SCOPE</dt><dd id="scopeValue">—</dd></div>
+            <div><dt>CONCURRENCY</dt><dd id="jobsValue">—</dd></div>
+            <div><dt>MAX OUTPUT</dt><dd id="maxOutputValue">—</dd></div>
+            <div><dt>REQUEST TIMEOUT</dt><dd id="timeoutValue">—</dd></div>
+            <div><dt>RESULT DIRECTORY</dt><dd id="outputValue">—</dd></div>
+          </dl>
+      </section>
+
+      <section class="ops-panel task-panel">
+        <header class="task-panel-head"><div><span>EXECUTION QUEUE</span><h2>逐题运行情况</h2></div><div class="queue-filter" id="queueFilter"><button class="active" data-filter="all">全部</button><button data-filter="running">运行中</button><button data-filter="PASS">通过</button><button data-filter="FAIL">失败</button><button data-filter="pending">等待</button></div></header>
+        <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>#</th><th>任务</th><th>类别</th><th>状态</th><th>步骤</th><th>TOKENS</th><th>耗时</th><th>失败证据</th><th>操作</th></tr></thead><tbody id="taskRows"><tr><td colspan="9" class="empty-cell">正在连接运行器…</td></tr></tbody></table></div>
+      </section>
+
+      <section class="ops-panel terminal-panel">
+        <header><div><span>RAW PROCESS STREAM</span><h2>实时输出</h2></div><div class="terminal-actions"><label><input type="checkbox" id="autoFollow" checked /> 自动跟随</label><button id="clearTerminal">清空显示</button></div></header>
+        <div class="terminal" id="terminal" role="log" aria-live="polite"><div class="terminal-empty">$ waiting for runner output<span>_</span></div></div>
+      </section>
+      </div>
+
+      <div class="ops-page" data-page="board" hidden>
+        <section class="ops-panel board-frame-panel">
+          <header class="board-frame-head">
+            <div><span>JOB BOARD</span><h2>任务看板</h2></div>
+            <div class="board-frame-actions">
+              <span>与实时输出共用同一份服务端泳道推导</span>
+              <button id="boardReload" type="button">↻ 重载看板</button>
+              <a href="index.html#board" target="_blank" rel="noopener">新窗口打开 ↗</a>
+            </div>
+          </header>
+          <iframe class="board-frame" id="boardFrame" title="任务看板" src="about:blank" data-src="index.html?embed=1#board"></iframe>
+        </section>
+      </div>
+    </main>
+
+    <div class="ops-toast" id="opsToast"></div>
+    <script src="console.js"></script>
+  </body>
+</html>

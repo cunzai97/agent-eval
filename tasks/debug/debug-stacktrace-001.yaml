@@ -1,0 +1,29 @@
+id: debug-stacktrace-001
+title: 修复优惠券解析、折扣上限与订单行契约（V2）
+category: debug
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: calc_crash}
+agent:
+  system_prompt: |
+    先运行测试，根据 traceback 和失败语义定位多个根因；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  优惠券路径同时出现无券 KeyError、百分数字符串解析、折扣 cap 方向和订单行边界问题。
+  修复 validation/coupon 两层，接受 0..1 的 rate 或百分数字符串；subtotal 支持默认 qty、跳过 void、拒绝负 qty。
+  可见测试每种边界只给了一个样例（total 100、"10%"、cap 15、一行 void），照抄这些具体输入不算修好：
+  任意金额与任意百分数字符串都要成立；cap 只能把折扣往小压，cap 大于折扣时必须保持不变，
+  折扣永远不得超过订单总额；越界或无法解析的 rate（百分数形式同样）一律 ValueError；
+  qty 缺省为 1，非 void 的 status 照常计入，负 qty 出现在订单行任意位置都要拒绝；没有券时原样返回 total。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 24 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'calc/validation.py' in state.files_changed and 'calc/coupon.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

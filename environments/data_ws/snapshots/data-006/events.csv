@@ -1,0 +1,15 @@
+event_id,customer_id,event_time,updated_at,type,currency,amount,status
+e1,c1,2025-01-15T10:00:00Z,2025-01-15T10:05:00Z,purchase,USD,90,completed
+e1,c1,2025-01-15T10:00:00Z,2025-01-15T10:06:00Z,purchase,USD,100,completed
+e2,c1,2025-01-20T12:00:00Z,2025-01-20T12:01:00Z,refund,USD,20,completed
+e3,c2,2025-01-20T08:30:00Z,2025-01-20T09:00:00Z,purchase,EUR,50,completed
+e4,c3,2025-02-01T00:00:00Z,2025-02-01T00:01:00Z,purchase,CNY,300,completed
+e5,c2,2025-02-02T00:00:00Z,2025-02-02T00:01:00Z,purchase,USD,bad,completed
+e6,c9,2025-02-02T02:00:00Z,2025-02-02T02:01:00Z,purchase,USD,10,completed
+e7,c1,2025-02-03T00:00:00Z,2025-02-03T00:01:00Z,purchase,USD,999,pending
+e8,c2,2025-02-03T04:00:00Z,2025-02-03T04:01:00Z,purchase,USD,25,completed
+e8,c2,2025-02-03T04:00:00Z,2025-02-03T04:02:00Z,purchase,USD,30,completed
+e9,c3,2025-02-04T04:00:00Z,2025-02-04T04:01:00Z,purchase,EUR,40,completed
+e9,c3,2025-02-04T04:00:00Z,2025-02-04T04:02:00Z,purchase,EUR,40,cancelled
+e10,c3,2025-02-05T04:00:00Z,2025-02-05T04:01:00Z,purchase,JPY,1000,completed
+e11,c3,2025-02-03T04:00:00Z,2025-02-03T04:01:00Z,refund,USD,-5,completed

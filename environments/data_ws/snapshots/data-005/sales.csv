@@ -1,0 +1,12 @@
+order_id,updated_at,region,product,amount,status
+e1,2025-01-01T10:00:00Z,east,A,100,completed
+e2,2025-01-01T10:00:00Z,east,A,50,completed
+e3,2025-01-01T10:00:00Z,east,B,200,completed
+e4,2025-01-01T10:00:00Z,east,C,200,completed
+e5,2025-01-01T10:00:00Z,east,D,bad,completed
+w1,2025-01-01T10:00:00Z,west,X,300,completed
+w2,2025-01-01T10:00:00Z,west,Y,150,completed
+w3,2025-01-01T10:00:00Z,west,Y,200,completed
+w4,2025-01-01T10:00:00Z,west,Z,300,completed
+w4,2025-01-01T11:00:00Z,west,Z,350,completed
+w5,2025-01-01T10:00:00Z,west,Q,999,cancelled

@@ -1,0 +1,20 @@
+{
+ "note": "仅凭题面推出的参考定位：cache_key 只返回 item_id，丢掉 tenant 维度，使两个租户的相同 item_id 折叠成同一缓存身份（repository.fetch 用的是 (tenant, item_id) 复合键，本身无误；clear 只负责清空）。直接调用 cache_key 并把 loader 结果按该身份写入 _CACHE、原样回放错误命中的 get 是自身正确的传播层，即题面要求的近邻诱饵；load_item 为入口门面。cause 取 omits-tenant 而非 returns-shared-mutable-object（fetch 每次返回新 dict）或 repository-key-collision（复合键无碰撞）。不依赖任何模型，不修改任何文件。",
+ "author": "qoder",
+ "calls": [
+  ["list_files", {}],
+  ["run_tests", {}],
+  ["read_file", {"path": "tests/test_service.py"}],
+  ["read_file", {"path": "mem/service.py"}],
+  ["grep", {"pattern": "def get"}],
+  ["read_file", {"path": "mem/cache.py"}],
+  ["grep", {"pattern": "cache_key("}],
+  ["read_file", {"path": "mem/identity.py"}],
+  ["grep", {"pattern": "def cache_key"}],
+  ["read_file", {"path": "mem/repository.py"}],
+  ["grep", {"pattern": "fetch("}],
+  ["run_tests", {}],
+  ["answer", {"value": "{\"file\": \"mem/identity.py\", \"symbol\": \"cache_key\", \"cause\": \"omits-tenant\", \"decoy\": \"get\"}"}],
+  ["done", {}]
+ ]
+}

@@ -1,0 +1,30 @@
+id: quant-policy-001
+title: 混合精度量化张量分类（敏感表 + 组一致性取最保守 + 存储核算）
+category: script-dev
+tags: [planning, classification, simulation]
+difficulty: hard
+environment: {name: code_repo, snapshot: quant_policy}
+agent:
+  system_prompt: |
+    按仓库根 spec.md 的契约实现 classify。三级优先级：敏感算子钉死规则精度、可量化集降 int8、
+    未知算子保守保 fp32；敏感表与可量化集冲突时敏感表赢。先读规格与可见测试，实现后跑测试；
+    存储核算精确到字节是验收关键。禁止改 tests/。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  quantpol/policy.py 目前是空壳（classify 抛 NotImplementedError）。请严格按 spec.md 实现
+  classify(graph, sensitive, quantizable, byte_cost) -> {"tiers", "bytes_after", "ratio"}。
+  两遍走：先逐 tensor 定意向精度，再做组一致性；最后精确核算 bytes_after 与 ratio。
+  可见测试只覆盖最简场景，默认行为和组约束的相互作用是验收关键，别只让可见测试变绿。
+  只改 quantpol/policy.py，不要动 tests/ 与 spec.md。实现后运行测试确认全绿。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 6 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'quantpol/policy.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

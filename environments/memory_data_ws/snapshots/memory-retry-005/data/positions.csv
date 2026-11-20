@@ -1,0 +1,15 @@
+trade_id,as_of_seq,booked_date,side,amount,status
+T1,1,2025-06-02,buy,1200.00,done
+T1,2,2025-06-02,buy,1150.00,done
+T2,1,2025-06-05,sell,-400.00,done
+T3,1,2025-06-10,buy,700.50,done
+T3,2,2025-06-10,cancel,0.00,cancelled
+T4,1,2025-06-16,sell,-250.25,done
+T5,1,2025-06-20,buy,980.00,done
+T5,2,2025-06-20,buy,980.00,replaced
+T5,3,2025-06-20,buy,1040.00,done
+T6,1,2025-06-27,sell,-60.00,done
+T7,1,2025-06-27,buy,45.50,done
+T8,1,2025-06-28,buy,9999.00,done
+T9,1,2025-06-30,sell,-8888.00,done
+T10,1,2025-06-29,buy,7777.00,done

@@ -1,0 +1,15 @@
+{
+ "note": "按题面修复迁移链：discover 校验重复版本并按数字升序；plan 过滤已应用；apply 记录 checksum、校验内容漂移、失败即停并原地写回 state。",
+ "calls": [
+  ["list_files", {}],
+  ["read_file", {"path": "migratekit/registry.py"}],
+  ["read_file", {"path": "migratekit/runner.py"}],
+  ["read_file", {"path": "tests/test_visible.py"}],
+  ["run_tests", {}],
+  ["edit_file", {"path": "migratekit/registry.py", "old_text": "    items = []\n    for path in files:\n        base = str(path).replace(\"\\\\\", \"/\").rsplit(\"/\", 1)[-1]\n        match = _NAME.match(base)\n        if not match:\n            raise ValueError(f\"invalid migration name: {base}\")\n        items.append((int(match.group(1)), base))\n    return items", "new_text": "    items = []\n    seen = {}\n    for path in files:\n        base = str(path).replace(\"\\\\\", \"/\").rsplit(\"/\", 1)[-1]\n        match = _NAME.match(base)\n        if not match:\n            raise ValueError(f\"invalid migration name: {base}\")\n        version = int(match.group(1))\n        if version in seen:\n            raise ValueError(f\"duplicate migration version {version}: {seen[version]} and {base}\")\n        seen[version] = base\n        items.append((version, base))\n    return sorted(items)"}],
+  ["edit_file", {"path": "migratekit/runner.py", "old_text": "def plan(applied, migrations):\n    \"\"\"Return migrations that still need to run.\"\"\"\n    return list(migrations)", "new_text": "def plan(applied, migrations):\n    \"\"\"Return migrations that still need to run.\"\"\"\n    return [migration for migration in migrations if migration[1] not in applied]"}],
+  ["edit_file", {"path": "migratekit/runner.py", "old_text": "    applied = state.get(\"applied\")\n    if applied is None:\n        applied = {}\n        state[\"applied\"] = applied\n    report = {\"applied\": [], \"skipped\": [], \"failed\": None}\n    for version, name in migrations:\n        sql = load(name)\n        if name in applied:\n            report[\"skipped\"].append(name)\n            continue\n        try:\n            execute(sql)\n        except Exception:\n            report[\"failed\"] = name\n            continue\n        report[\"applied\"].append(name)\n    return report", "new_text": "    applied = state.setdefault(\"applied\", {})\n    report = {\"applied\": [], \"skipped\": [], \"failed\": None}\n    for version, name in migrations:\n        sql = load(name)\n        digest = checksum(sql)\n        if name in applied:\n            if applied[name] != digest:\n                raise ChecksumMismatch(name)\n            report[\"skipped\"].append(name)\n            continue\n        try:\n            execute(sql)\n        except Exception:\n            report[\"failed\"] = name\n            break\n        applied[name] = digest\n        report[\"applied\"].append(name)\n    return report"}],
+  ["run_tests", {}],
+  ["done", {}]
+ ]
+}

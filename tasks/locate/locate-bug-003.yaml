@@ -1,0 +1,49 @@
+id: locate-bug-003
+title: 在时间归一化链路中隔离窗口契约根因（V3）
+category: locate
+tags: [planning]
+difficulty: hard
+environment: {name: code_repo, snapshot: locate-003}
+agent:
+  system_prompt: |
+    先运行完整测试，再沿时间解析、窗口策略、聚合服务的调用链定位首次引入错误语义的定义点，
+    并用搜索确认谁直接调用了它；不要修改代码。用 answer 提交结构化证据后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  最近 24 小时均值在普通记录和 +08:00 时区记录上都正确，唯独恰好等于 cutoff 的记录被漏掉。
+  失败表象出现在聚合服务，但时间解析、UTC 归一化、窗口筛选和均值计算都可能改变结果。
+  不要把门面调用者或传播错误的中间层当作根因；请定位首次违反“cutoff 包含在窗口内”契约的
+  定义点，禁止修改代码。
+
+  decoy 不是可选项：请指名排除过程中那个“看起来正是根因”的近邻——直接调用上述定义点、
+  把筛选结果原样传播下去、自身实现并不引入错误的那一层。入口门面函数和从未被调用的工具
+  函数都不算 decoy。
+
+  必须运行完整测试，并用 grep 至少搜索两次（一次定位嫌疑符号的定义处，一次定位它的调用处），
+  至少阅读 4 个文件确认调用链，禁止修改代码。
+
+  用 answer 提交单行 JSON，只能包含 file、symbol、cause、decoy 四个键。
+  cause 从以下代码选择：excludes-cutoff、parses-offset-as-naive、averages-before-filter。
+  decoy 从以下符号名选择：recent_average、recent、average、safe_div。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'file': 'calc2/policy.py', 'symbol': 'inside_window', 'cause': 'excludes-cutoff', 'decoy': 'recent'}"
+  - type: state_assert
+    expr: "all(path in state.files_read for path in ['calc2/policy.py', 'calc2/window.py'])"
+  - type: state_assert
+    expr: "state.grep_calls >= 1 and state.test_runs >= 1"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: grep
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

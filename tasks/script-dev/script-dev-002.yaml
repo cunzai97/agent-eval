@@ -1,0 +1,30 @@
+id: script-dev-002
+title: Unicode 分词、停用词与确定性词频 CLI（V2）
+category: script-dev
+tags: [planning, constraint]
+difficulty: hard
+environment: {name: shell_ws, snapshot: script-002}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。仅用标准库实现 CLI，用两套输入验证；不得修改输入，完成后 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  实现 freq.py：参数 --input、--stopwords、--out。按 Unicode 字母或数字的连续串分词，
+  连字符、下划线和标点均为分隔符；使用 casefold；删除停用词和长度小于 2 的 token。
+  停用词文件每行一个词：整行去掉首尾空白后 casefold，与 token 完全相同才删除（停用词本身不再分词），
+  空行忽略；停用词文件可以没有任何词。输入为空或不含任何 token 时，输出仍只保留表头行。
+  输出 word,count，按 count 降序、word 升序。运行：
+    python3 freq.py --input words.txt --stopwords stopwords.txt --out out/freq.csv
+    python3 freq.py --input words_edge.txt --stopwords stopwords.txt --out out/freq_edge.csv
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.freq.columns == ['word', 'count'] and state.csv.freq.rows == [['café', '2'], ['hello', '2'], ['ai', '1'], ['don', '1']]"
+  - type: state_assert
+    expr: "state.csv.freq_edge.rows == [['one', '3'], ['two', '3'], ['42', '2']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 6 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash

@@ -1,0 +1,25 @@
+id: debug-stacktrace-005
+title: 修复闭包捕获与跨工厂调用状态污染（V2）
+category: debug
+tags: [planning, recovery, state-tracking]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-005}
+agent:
+  system_prompt: |
+    先运行测试复现，修复源码；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  handler 工厂同时存在循环闭包晚绑定和模块级计数共享：每个 handler 要捕获自己的配置，限额按
+  handler 且按 factory 隔离，新工厂必须是新状态；还要拒绝重复名称和非正 limit。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 18 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'funcs/state.py' in state.files_changed and 'funcs/make.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

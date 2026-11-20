@@ -1,0 +1,56 @@
+{
+  "note": "仅凭题面推出的参考修复，不依赖任何模型：缺陷按题面的提示分布在两层，就在各自的定义点各修一处，不在门面处补偿。1) text/normalize.py 只做 lower()：按题面顺序先 NFKD 分解（兼容字符如 ﬁ/Ⅻ/①/Ｄ 展开成字母数字）、再 casefold（ß/ẞ 折叠成 ss，这是 lower() 做不到的）、最后丢弃分解留下的组合音标；非字符串在这一层就 TypeError 拒绝。2) text/slug.py 的三处：原实现把空格换成 '-' 后用 [^a-z0-9-] 把其余标点*删掉*，两个词因此粘在一起（\"a.b\"->\"ab\"），改成按 [^0-9a-z]+ 切分成词再单连字符拼接（合并分隔符）；撇号属于词内部，直接删除而不当分隔符（含弯撇号 U+2019，否则 \"d’un\" 会碎成 \"d-un\"）；长度限制原来是 value[:max_length]，会留下半个尾部单词或尾部连字符，改为逐词累加、只保留放得下的完整词，单词与分隔符一律不留尾巴；空结果（含只有标点/组合音标/删完撇号后为空）走 ValueError 拒绝，非字符串走 TypeError。题面对两种边界未定，故此处不做要求：max_length 恰好落在词边界时是否还可以更省（alpha-beta-gamma@10），以及 max_length 装不下任何一个完整词时该拒绝还是该截半个词——本参考解按\"拒绝\"处理，隐藏用例对这两点不设判据。先 run_tests 复现（8 collected / 5 failed 形态），改完再 run_tests 确认 8 passed / 0 failed，然后 done。tests/ 一个字不动。",
+  "author": "qoder-subagent",
+  "calls": [
+    [
+      "list_files",
+      {}
+    ],
+    [
+      "read_file",
+      {
+        "path": "tests/test_slug.py"
+      }
+    ],
+    [
+      "read_file",
+      {
+        "path": "text/normalize.py"
+      }
+    ],
+    [
+      "read_file",
+      {
+        "path": "text/slug.py"
+      }
+    ],
+    [
+      "run_tests",
+      {}
+    ],
+    [
+      "edit_file",
+      {
+        "path": "text/normalize.py",
+        "old_text": "def normalize_text(value):\n    return value.lower()",
+        "new_text": "import unicodedata\n\n\ndef normalize_text(value):\n    \"\"\"Fold *value* into the plain form a slug is built from.\n\n    NFKD decomposition first, so compatibility characters (ligatures, roman\n    numerals, fullwidth and circled forms) expand into their letters and\n    digits; then casefold, which -- unlike lower() -- also turns \"ß\" into \"ss\";\n    finally the combining marks left behind by the decomposition are dropped, so\n    an accent never survives as its own character. Non-strings are refused here,\n    because this is the layer that decides what the characters *are*.\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(f\"expected str, got {type(value).__name__}\")\n    text = unicodedata.normalize(\"NFKD\", value)\n    text = text.casefold()\n    return \"\".join(ch for ch in text if not unicodedata.combining(ch))"
+      }
+    ],
+    [
+      "edit_file",
+      {
+        "path": "text/slug.py",
+        "old_text": "import re\n\nfrom .normalize import normalize_text\n\n\ndef slugify(value, max_length=80):\n    value = normalize_text(value).replace(\" \", \"-\")\n    value = re.sub(r\"[^a-z0-9-]\", \"\", value)\n    return value[:max_length]",
+        "new_text": "import re\n\nfrom .normalize import normalize_text\n\n# Apostrophes are deleted outright: they belong to the word, so they must never\n# act as a separator (\"d'un\" is \"dun\", not \"d-un\").\n_APOSTROPHES = \"\\u0027\\u2018\\u2019\\u0060\\u02bc\"\n\n# Everything that is not a letter or a digit separates two words. Runs of them\n# collapse into one separator, which is what \"merge separators\" asks for.\n_SEPARATOR = re.compile(r\"[^0-9a-z]+\")\n\n\ndef slugify(value, max_length=80):\n    \"\"\"Return the slug for *value*, at most *max_length* characters long.\n\n    Separators never disappear (deleting them would fuse two words) and never\n    stay doubled. Length limiting cuts on separator boundaries only, so the\n    result never ends mid-word or with a dangling hyphen. A value that leaves\n    nothing behind is refused rather than handed back empty.\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(f\"expected str, got {type(value).__name__}\")\n    text = normalize_text(value)\n    for apostrophe in _APOSTROPHES:\n        text = text.replace(apostrophe, \"\")\n    words = [word for word in _SEPARATOR.split(text) if word]\n    if not words:\n        raise ValueError(\"value has no letters or digits left to slugify\")\n    kept = []\n    length = 0\n    for word in words:\n        added = len(word) + (1 if kept else 0)\n        if length + added > max_length:\n            break\n        kept.append(word)\n        length += added\n    if not kept:\n        raise ValueError(f\"max_length={max_length} cannot hold a whole word\")\n    return \"-\".join(kept)"
+      }
+    ],
+    [
+      "run_tests",
+      {}
+    ],
+    [
+      "done",
+      {}
+    ]
+  ]
+}

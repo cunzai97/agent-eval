@@ -1,0 +1,24 @@
+{
+ "note": "仅凭题面推出的参考定位：quote_key 只返回 sku，丢掉 currency 维度，使同一 SKU 的不同币种折叠成同一报价身份（fx/rates.convert_usd、checkout/tax.add_tax、pricing/discounts.apply_tier、catalog.base_price 各自实现均正确，题面已排除汇率与税费）。直接调用 quote_key、按该身份写入 _CACHE 并原样回放错误命中的 cached_price 是自身无误的传播层，即近邻诱饵；quote 为 checkout 入口门面，unit_quote 只是编排。cause 取 omits-currency，而非 converts-after-discount（折扣在缓存之后由 apply_tier 施加，与污染无关）或 country-rate-fallback（RATES 按币种命中，无国家级回退）。不依赖任何模型，不修改任何文件。",
+ "author": "qoder",
+ "calls": [
+  ["list_files", {}],
+  ["run_tests", {}],
+  ["read_file", {"path": "tests/test_quote.py"}],
+  ["read_file", {"path": "checkout/service.py"}],
+  ["grep", {"pattern": "def unit_quote"}],
+  ["read_file", {"path": "pricing/service.py"}],
+  ["grep", {"pattern": "def cached_price"}],
+  ["read_file", {"path": "pricing/cache.py"}],
+  ["grep", {"pattern": "quote_key"}],
+  ["read_file", {"path": "pricing/quote_key.py"}],
+  ["grep", {"pattern": "def quote_key"}],
+  ["read_file", {"path": "pricing/catalog.py"}],
+  ["read_file", {"path": "fx/rates.py"}],
+  ["read_file", {"path": "pricing/discounts.py"}],
+  ["read_file", {"path": "checkout/tax.py"}],
+  ["run_tests", {}],
+  ["answer", {"value": "{\"file\": \"pricing/quote_key.py\", \"symbol\": \"quote_key\", \"cause\": \"omits-currency\", \"decoy\": \"cached_price\"}"}],
+  ["done", {}]
+ ]
+}

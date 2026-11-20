@@ -1,0 +1,52 @@
+{
+  "note": "仅凭题面推出的正确解：优先级 defaults < file_config < env_config；dict 递归合并、其他类型（含 list/None）由 override 整体替换；两侧的值都 deepcopy，所以结果不与任何一层输入共享可变子对象。先跑一次测试复现红，改完再跑一次确认绿。",
+  "author": "qoder",
+  "calls": [
+    [
+      "run_tests",
+      {}
+    ],
+    [
+      "read_file",
+      {
+        "path": "cfg/merge.py"
+      }
+    ],
+    [
+      "read_file",
+      {
+        "path": "cfg/resolve.py"
+      }
+    ],
+    [
+      "read_file",
+      {
+        "path": "tests/test_cfg.py"
+      }
+    ],
+    [
+      "edit_file",
+      {
+        "path": "cfg/merge.py",
+        "old_text": "def merge(base, override):\n    result = dict(override)\n    result.update(base)\n    return result\n",
+        "new_text": "import copy\n\n\ndef merge(base, override):\n    result = {}\n    for key, value in base.items():\n        result[key] = copy.deepcopy(value)\n    for key, value in override.items():\n        existing = base.get(key)\n        if isinstance(existing, dict) and isinstance(value, dict):\n            result[key] = merge(existing, value)\n        else:\n            result[key] = copy.deepcopy(value)\n    return result\n"
+      }
+    ],
+    [
+      "edit_file",
+      {
+        "path": "cfg/resolve.py",
+        "old_text": "    return merge(env_config, merge(file_config, defaults))",
+        "new_text": "    return merge(merge(defaults, file_config), env_config)"
+      }
+    ],
+    [
+      "run_tests",
+      {}
+    ],
+    [
+      "done",
+      {}
+    ]
+  ]
+}

@@ -1,0 +1,37 @@
+id: fix-failing-test-004
+title: 修复 CSV 数字解析、Decimal 汇总与中位数（V2）
+category: fix-and-test
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-004}
+agent:
+  system_prompt: |
+    先运行测试复现，修复源码；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  输入是一条 RFC 风格 CSV 记录，字段可带引号和千分位逗号，空字段忽略，非法字段或多记录拒绝。
+  "空"的口径与 `test_empty_input` 一致：空文本、纯空白文本、只由空字段组成的记录（如 `,, ,`）都算
+  "没有数字"，一律返回 count=0 且 total/mean/median 为 0.00，**不得**当成非法输入或"零条记录"拒绝；
+  只有出现第二个真正的数据记录（多行）或存在非法字段时才走 ValueError。
+  字段只允许普通的十进制数（可带符号与小数部）；nan/inf 之类的拼写不是数字，同属非法字段，
+  必须走与其它非法字段相同的 ValueError 拒绝路径，不得当成数值收下、更不得出现在汇总结果里。
+  使用 Decimal 精确计算 count/total/mean/median 并固定两位小数；偶数中位数取中间两项均值。
+  取整只在最后一步做一次，不得先按两位小数裁剪每个字段再汇总。
+# 2026-09-21 题面补句（判据一字未动）：实跑（Qwen3.8-27B@1235）可见 8/8 全绿、隐藏 30/32，
+# 两条失败同为 parse_numbers('') 抛 "expected exactly one CSV record"——它把"恰好一条记录"的守卫
+# 放在忽略空字段之前。"空→全 0"这个语义可见测试已钉过一次（summarize(" , ")），但 `""` 严格说是
+# "零条记录"，落在"输入是一条记录、多记录拒绝"的两种可读法之间，属可辩护歧义。
+# 按"严格但已隐含 → 写进题面、判据不动"的既有裁定处理：把口径写明，隐藏用例保留。
+# 代价如实记录：题面变长使 fix-004 指纹变化，历史 26/27 与新读数不可直接混算，需在新版本上重积累。
+budget: {max_steps: 34, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 12 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'api/parse.py' in state.files_changed and 'api/summarize.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

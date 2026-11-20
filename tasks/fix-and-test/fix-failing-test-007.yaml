@@ -1,0 +1,40 @@
+id: fix-failing-test-007
+title: 修复分支会话的最长精确 Checkpoint 选择
+category: fix-and-test
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-007}
+agent:
+  system_prompt: |
+    你是负责推理服务缓存的资深工程师。先运行一次测试复现，再修复源码，使全部测试通过。
+    禁止修改 tests/；必须 run_tests 验证，全绿后调用 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  这是从长上下文推理服务抽出的 checkpoint 索引。一个会话叶子可能包含 A/B/C/D，
+  新请求只需要 A/B；系统应跨分支选出最长的精确 checkpoint，并在有完整 anchor 时
+  避免先加载更昂贵的叶子 session。
+
+  当前实现存在碰撞误命中、短 checkpoint 抢先、root/full 过滤失效、失效弱引用残留，
+  以及“先选 leaf、后看 anchor”的顺序问题。请修复：
+
+  - 身份必须逐 token 完整相等，长度或 fingerprint 相同不算命中；
+  - 返回不超过请求长度的最长精确前缀；identity 长度必须与 n_tokens 一致；
+  - root 默认排除，仅显式请求时纳入；full_only 必须严格生效；
+  - 索引只持有弱引用，并清理已释放节点；
+  - 选择恢复源时，完整 anchor 优先于 leaf；没有 anchor 才回退到 LCP 最长的 leaf。
+
+  不要把测试样例写死，且不得改测试。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report['failed'] == 0 and state.test_report['errors'] == 0 and state.test_report['passed'] >= 9"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'checkpoint/index.py' in state.files_changed and 'checkpoint/selector.py' in state.files_changed"
+  - type: state_assert
+    expr: "state.hidden_tests.passed == state.hidden_tests.total and state.hidden_tests.total >= 5"
+  - type: tool_used
+    name: run_tests
+  - type: order_of
+    tools: [edit_file, run_tests]

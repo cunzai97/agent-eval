@@ -1,0 +1,20 @@
+{
+ "note": "仅凭题面推出的参考定位：inside_window 用 observed_at > cutoff，把恰好等于 cutoff 的记录排除在外，首次违反“cutoff 包含在窗口内”契约（recent 已先把 +08:00 归一化成 aware datetime，window 侧也只负责筛选）；直接调用 inside_window 并把筛选结果原样返回列表的 recent 是自身无误的传播层，即题面要求的近邻诱饵。safe_div 从未被调用，已在题面排除。不依赖任何模型，不修改任何文件。",
+ "author": "qoder",
+ "calls": [
+  ["list_files", {}],
+  ["run_tests", {}],
+  ["read_file", {"path": "tests/test_service.py"}],
+  ["read_file", {"path": "calc2/service.py"}],
+  ["grep", {"pattern": "def recent"}],
+  ["read_file", {"path": "calc2/window.py"}],
+  ["grep", {"pattern": "inside_window("}],
+  ["read_file", {"path": "calc2/policy.py"}],
+  ["grep", {"pattern": "def inside_window"}],
+  ["read_file", {"path": "calc2/stats.py"}],
+  ["read_file", {"path": "calc2/ops.py"}],
+  ["run_tests", {}],
+  ["answer", {"value": "{\"file\": \"calc2/policy.py\", \"symbol\": \"inside_window\", \"cause\": \"excludes-cutoff\", \"decoy\": \"recent\"}"}],
+  ["done", {}]
+ ]
+}

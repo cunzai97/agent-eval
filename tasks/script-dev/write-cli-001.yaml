@@ -1,0 +1,43 @@
+id: write-cli-001
+title: 版本化员工资料外连接 CLI（V2）
+category: script-dev
+tags: [planning, state-tracking, constraint, generalization]
+difficulty: hard
+environment: {name: shell_ws, snapshot: merge_csv}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。实现通用 CLI 并用两套输入运行：两侧 CSV 的列顺序不同、可能只有
+    表头、同一 id 可能有多版本且乱序、时间可能带时区偏移、字段值可能含逗号与引号。必须按表头
+    名取列、按 UTC 时刻比较时间、用 csv 模块转义输出。禁止修改预置文件，完成后 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  实现 merge_csv.py（仅标准库）：
+    python merge_csv.py --left <csv> --right <csv> --out <csv>
+
+  1. 两侧各自按 employee_id 保留 updated_at 最晚的行：列顺序不保证一致，按表头名取列；
+     updated_at 是 ISO-8601，Z 与 ±HH:MM 都要支持，按 UTC **时刻**先后比较（不能按字符串比较）；
+     时间无法解析或没有时区、employee_id 为空的行整行跳过；时刻完全相同时保留文件中
+     **后出现**的一行；某一侧可能只有表头（该侧无任何行）。
+  2. 对两侧的 employee_id 做 full outer join，输出 employee_id,name,email,city：
+     name 取左侧最新行（左侧没有该 id 时为空）；city 取右侧最新行（同理）；
+     email 优先取右侧最新行的非空值，否则取左侧最新行的非空值，都为空则输出空；缺失一律填空。
+  3. 按 employee_id **字符串**升序输出（'10' 排在 'k1' 之前）；值里含逗号或引号时输出必须是
+     合法 CSV（用 csv 模块转义）。
+
+  必须用同一脚本运行：
+    python3 merge_csv.py --left a.csv --right b.csv --out out/merged.csv
+    python3 merge_csv.py --left a_edge.csv --right b_edge.csv --out out/merged_edge.csv
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.merged.columns == ['employee_id', 'name', 'email', 'city'] and state.csv.merged.rows == [['u1', 'Alice A', 'alice@new.test', 'NYC'], ['u2', 'Bob', 'bob@b.test', 'SF'], ['u3', '', 'carol@b.test', 'LA']]"
+  - type: state_assert
+    expr: "state.csv.merged_edge.rows == [['x1', 'Ann', 'ann@test', ''], ['x2', 'Xavier', 'x@new.test', 'Paris'], ['x3', '', '', 'Tokyo']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0 and 'merge_csv.py' in state.files and 'a.csv' not in state.modified and 'b_edge.csv' not in state.modified"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash
+  - type: order_of
+    tools: [write_file, run_bash]

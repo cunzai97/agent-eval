@@ -1,0 +1,28 @@
+id: data-pipeline-005
+title: 订单修订去重、产品汇总与确定性 Top2（V2）
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: medium
+environment: {name: data_ws, snapshot: data-005}
+agent:
+  system_prompt: |
+    你是资深数据工程师。编写并运行 Python 脚本生成结果；不得修改输入，完成后 done。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 sales.csv，生成 out/top.csv：
+  1. 按 order_id 保留 updated_at 最晚版本；仅保留 completed 且 amount 为非负数字；
+  2. 按 region,product 汇总 total_amount；
+  3. 每个 region 取排序后的前 2 个产品：total_amount 降序，同额时 product 字典序升序；rank 为 1、2；
+  4. 列严格为 region,rank,product,total_amount，金额固定两位小数，最终按 region、rank 升序。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.top.columns == ['region', 'rank', 'product', 'total_amount']"
+  - type: state_assert
+    expr: "state.outputs.top.rows == [['east', '1', 'B', '200.00'], ['east', '2', 'C', '200.00'], ['west', '1', 'Y', '350.00'], ['west', '2', 'Z', '350.00']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [write_file, run_python]

@@ -1,0 +1,29 @@
+id: fix-failing-test-001
+title: 修复区间、加权统计与边界契约（V2）
+category: fix-and-test
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: calc_buggy}
+agent:
+  system_prompt: |
+    你是资深工程师。先运行测试复现，修复所有源码缺陷；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  修复 calc/ 中相互独立的区间求和、加权平均与 clamp 契约问题。不要把样例硬编码进实现；
+  保持公开函数签名，正确处理空输入、零权重和反向边界。只能修改源码。
+budget: {max_steps: 34, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  # 可见套件只调 calc.mathops 的三个门面，够不到 calc/bounds.py 与 calc/statistics.py
+  # 这两个真正的定义点：把 +1 与分母补在调用点上、再给两个源文件加一行注释，照样 9/9 绿。
+  # 隐藏用例逐层验契约（inclusive_stop / inclusive_values / weighted_mean 直接调用）+
+  # 门面样例外的泛化 + 两个拒绝契约的边界覆盖。详见 evalkit/envs/hidden_tests/calc_buggy.py。
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 32 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['calc/bounds.py', 'calc/statistics.py', 'calc/mathops.py'])"
+  - type: tool_used
+    name: run_tests

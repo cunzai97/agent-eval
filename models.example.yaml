@@ -1,0 +1,61 @@
+# 示例档案：复制成 models.yaml 后按自己的端点改。
+# 密钥一律用 ${ENV_VAR} 引用，明文不要写进这个文件；.env 已在 .gitignore 里。
+#
+# 字段说明：
+#   wire_api: chat（/v1/chat/completions）或 responses（/v1/responses）
+#   upstream_url: 本机中转网关背后的真实上游（只影响并发闸门归类，可省略）
+#   temperature/seed/timeout_s/max_output_tokens: 每题采样的固定口径
+
+models:
+  # 本机 llama.cpp / vLLM 之类，OpenAI 兼容，key 随便填
+  - name: local-qwen
+    base_url: http://127.0.0.1:1235/v1
+    api_key: "local"
+    model: qwen3.8-27b
+    wire_api: chat
+    temperature: 0.0
+    seed: 42
+    timeout_s: 900
+    max_output_tokens: 16384
+
+  # 云端 / 中转网关
+  - name: cloud-example
+    base_url: https://api.example.com/v1
+    api_key: "${EXAMPLE_API_KEY}"
+    model: some-model
+    wire_api: chat
+    stream: true
+    temperature: 0.0
+    seed: 42
+    timeout_s: 900
+    max_output_tokens: 16384
+
+# 裁判：带 rubric 的题用它打分；确定性断言够不到的题才走裁判。
+# 不同裁判的分数不能混在同一张榜上（evalkit/fingerprint.py 会把判分口径钉进指纹）。
+judge:
+  default: local-judge
+  profiles:
+    local-judge:
+      api_key: "local"
+      base_url: http://127.0.0.1:1236/v1
+      model: judge-model
+      wire_api: chat
+      stream: true
+      temperature: 0.0
+      seed: 42
+      timeout_s: 1200
+      max_retries: 6
+      retry_backoff_s: 2.0
+      max_output_tokens: 8192
+    cloud-judge:
+      api_key: "${JUDGE_API_KEY}"
+      base_url: https://api.example.com/v1
+      model: judge-model
+      wire_api: chat
+      stream: true
+      temperature: 0.0
+      seed: 42
+      timeout_s: 900
+      max_retries: 5
+      retry_backoff_s: 2.0
+      max_output_tokens: 16384

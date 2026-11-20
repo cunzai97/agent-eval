@@ -1,0 +1,62 @@
+{
+ "note": "仅凭 task_prompt 推出的参考修复：缺陷分两处。money/rules.py —— MINOR_UNITS 把 JPY/KWD 都写成 2 位（应为 USD 2、JPY 0、KWD 3），ROUNDING 是 ROUND_DOWN（题面要求统一 ROUND_HALF_UP），scale() 对未知币种抛 KeyError（应为 ValueError）；money/convert.py —— 金额先过 float 再 int() 截断（题面禁止经过 binary float，且截断不是半进位），改为 Decimal(text) 全程十进制、按 rules.scale 倍乘后用 rules.ROUNDING 一次性取整，负号（会计括号）在取整之后施加，并保留 $／千分位／首尾空白／负号与币种符号先后顺序等原有可解析记号，公开签名不变。生成前在临时副本上实测：可见 8 条全绿、9 条隐藏用例全绿，期望值取自独立十进制参考实现（Decimal(x)*10**e 后 ROUND_HALF_UP），并对六份单点变异复验为可见全绿+隐藏失败：rules 只加注释而逻辑搬进 convert、Decimal(str(float(x))) 绕一圈二进制浮点、用 x+0.5 取整冒充 HALF_UP（负数半分向正无穷错）、只剥一组千分位、默认币种漂移、括号不配对被当成合法输入。见 docs/hardening_evidence/negative_controls/NC-fix-failing-test-002-fake-half-up.py。",
+ "author": "qoder-subagent",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "tests/test_convert.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "money/rules.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "money/convert.py"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "grep",
+   {
+    "pattern": "MINOR_UNITS"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "money/rules.py",
+    "old_text": "from decimal import ROUND_DOWN\n\n\nMINOR_UNITS = {\"USD\": 2, \"JPY\": 2, \"KWD\": 2}\nROUNDING = ROUND_DOWN\n\n\ndef scale(currency):\n    return 10 ** MINOR_UNITS[currency]",
+    "new_text": "from decimal import ROUND_HALF_UP\n\n\n# Minor-unit exponents: USD is 1/100, JPY has no fractional unit at all,\n# KWD is 1/1000.  Anything not listed here is not a supported currency.\nMINOR_UNITS = {\"USD\": 2, \"JPY\": 0, \"KWD\": 3}\nROUNDING = ROUND_HALF_UP\n\n\ndef scale(currency):\n    try:\n        exponent = MINOR_UNITS[currency]\n    except KeyError:\n        raise ValueError(f\"unknown currency: {currency!r}\") from None\n    return 10 ** exponent"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "money/convert.py",
+    "old_text": "from .rules import scale\n\n\ndef to_minor_units(value, currency=\"USD\"):\n    text = str(value).strip().replace(\"$\", \"\").replace(\",\", \"\")\n    negative = text.startswith(\"(\") and text.endswith(\")\")\n    if negative:\n        text = text[1:-1]\n    result = int(float(text) * scale(currency))\n    return -result if negative else result",
+    "new_text": "from decimal import Decimal, InvalidOperation\n\nfrom .rules import ROUNDING, scale\n\n\ndef to_minor_units(value, currency=\"USD\"):\n    \"\"\"Amount -> integer minor units, staying in decimal all the way.\n\n    Accepts the supported notation (thousands separators, \"$\", accounting\n    negatives, surrounding blanks, sign and symbol in either order), rejects\n    everything else with ValueError, and rounds the minor-unit value with the\n    decimal ROUND_HALF_UP declared in rules.py -- away from zero for negatives.\n    \"\"\"\n    text = str(value).strip()\n    negative = text.startswith(\"(\") and text.endswith(\")\")\n    if negative:\n        text = text[1:-1].strip()\n    text = text.replace(\"$\", \"\").replace(\",\", \"\").strip()\n    try:\n        amount = Decimal(text)\n    except (ArithmeticError, InvalidOperation, TypeError, ValueError):\n        raise ValueError(f\"invalid amount: {value!r}\") from None\n    if not amount.is_finite():\n        raise ValueError(f\"invalid amount: {value!r}\")\n    units = (amount * scale(currency)).to_integral_value(rounding=ROUNDING)\n    return -int(units) if negative else int(units)"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

@@ -1,0 +1,63 @@
+id: script-dev-007
+title: 策略收益必须和风格匹配对照组一起报（等权基准陷阱）
+category: script-dev
+tags: [planning, constraint, generalization, evaluation-literacy]
+difficulty: hard
+environment: {name: shell_ws, snapshot: script-007}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师，也是严谨的回测复核者。只写通用脚本、只按规范计算，绝不把数字
+    写死进报表；面板的列顺序、标的数量、日期是否有序都可能变化。禁止修改输入文件，
+    完成后调用 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  实现 report.py（仅标准库），用法：
+    python3 report.py --data returns.csv --out out/report.csv
+
+  输入是按标的逐日涨跌幅面板，表头为 date,code,board,ret_pct（ret_pct 是当日百分数涨跌幅，
+  2.5 表示 +2.5%），面板完整（每个 date 下每只标的一条），但行序不保证有序。
+
+  被考核的策略（单票动量，只在 board 为 K 的标的里选）：
+  1. 把出现过的 date 去重升序记为 D1..Dn；建仓日从 D4 到 Dn，D1..D3 空仓；
+  2. 建仓日 Dk：对每只 board=K 的标的，用 D(k-3)..D(k-1) 三天的复利累计涨幅
+     （Π(1+ret/100)-1）作为分数，取分数最高的那只满仓持有 Dk 当天，当天收益就是它
+     Dk 的 ret_pct；分数并列时取 code 字典序最小的一只；
+  3. 策略累计收益 policy = 逐个建仓日复利（Π(1+当日收益/100)-1）乘出来的百分数。
+     有效持有窗口记为 W = D4..Dn。
+
+  下面这些参照口径全部在同一个窗口 W 上算，并且全部用"期初等额买入、持有到窗口末、
+  不再平衡"的等权口径（即各标的窗口累计收益的算术平均；单个标的累计收益 = Π(1+ret/100)-1）：
+  4. style_control：等权持有全部 board=K 的标的（与策略风格匹配的对照组）；
+  5. market：等权持有面板里全部标的（不分 board）；
+  6. median：全部标的窗口累计收益的中位数（偶数个标的时取中间两个的平均值）；
+  7. up_fraction：全部标的中窗口累计收益严格大于 0 的比例（0~1 的小数）。
+
+  输出 out/report.csv，表头必须是 metric,value，数据行按下面顺序恰好 8 行：
+    policy_return_pct, style_control_return_pct, market_return_pct, market_median_pct,
+    market_up_fraction, excess_vs_style_control_pct, excess_vs_market_pct, attribution
+  格式约定：百分数只写数字，不带 %、不带正号，保留两位小数、不用千分位，负数写作 -6.26；
+  market_up_fraction 是 0~1 的比例，也保留两位小数；两个 excess 行先按未取整的原值相减、
+  再取两位小数（可为负）；attribution 是文本：若 policy - style_control > 1.0（个百分点，
+  按未取整原值判断）则输出 selection，否则输出 sector。
+
+  跑通后调用 done。禁止修改 returns.csv 和 README.md。这份报表要让读的人一眼看出：
+  相对"全市场等权"的超额，是否真的等于相对"同板块等权"的超额。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.report.columns == ['metric', 'value'] and len(state.csv.report.rows) == 8"
+  - type: state_assert
+    expr: "state.csv.report.rows == [['policy_return_pct', '18.87'], ['style_control_return_pct', '18.42'], ['market_return_pct', '-6.26'], ['market_median_pct', '-16.34'], ['market_up_fraction', '0.33'], ['excess_vs_style_control_pct', '0.45'], ['excess_vs_market_pct', '25.13'], ['attribution', 'sector']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0 and 'returns.csv' not in state.modified and 'README.md' not in state.modified and 'report.py' in state.files"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 3 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash
+    min_calls: 1
+  - type: order_of
+    tools: [write_file, run_bash]
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

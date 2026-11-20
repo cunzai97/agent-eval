@@ -1,0 +1,41 @@
+id: script-dev-004
+title: 多子命令统计与组间比较 CLI（V2）
+category: script-dev
+tags: [planning, state-tracking, constraint, generalization]
+difficulty: hard
+environment: {name: shell_ws, snapshot: script-004}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。用 argparse 实现通用 CLI 并运行两个子命令：输入的列顺序、group
+    取值（含空串、逗号、引号）与行数都可能与示例不同，必须按表头名取列并用 csv 模块转义输出。
+    不得修改输入，完成后 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  实现 script.py（仅标准库），忽略非法或负数 value（value 为 0 是**合法**的；"bad"、空、
+  非数字、负数不合法）：
+
+  - report --file F --out O：按 group 输出 group,count,sum,avg，金额两位小数；
+    group 按**字符串字典序**升序（例如 g10 排在 g2 之前）；列顺序不保证，可能出现额外列，
+    一律按表头名取列；group 取值原样保留（空字符串也是合法的组名，含逗号/引号时输出必须是
+    合法 CSV，用 csv 模块转义）；只有至少含一个合法值的 group 才输出行——某个 group 的
+    value 全部非法时**不输出该 group**；输入可能只有表头，此时只输出表头行。
+  - compare --file F --left A --right B --out O：输出 metric,left,right,delta 三行，
+    依次为 count/sum/avg；delta=right-left；count 及其 delta 为整数，sum/avg/delta 两位小数；
+    某一侧的 group 不存在（或没有合法值）时，该侧按 count=0、sum=0.00、avg=0.00 参与计算。
+  - 金额一律不使用千分位。
+
+  必须运行：
+    python3 script.py report --file nums.csv --out out/report.csv
+    python3 script.py compare --file nums.csv --left a --right b --out out/compare.csv
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.report.rows == [['a', '2', '15.00', '7.50'], ['b', '3', '50.00', '16.67']]"
+  - type: state_assert
+    expr: "state.csv.compare.columns == ['metric', 'left', 'right', 'delta'] and state.csv.compare.rows == [['count', '2', '3', '1'], ['sum', '15.00', '50.00', '35.00'], ['avg', '7.50', '16.67', '9.17']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0 and 'nums.csv' not in state.modified"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash

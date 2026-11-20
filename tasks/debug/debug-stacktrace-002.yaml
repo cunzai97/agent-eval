@@ -1,0 +1,27 @@
+id: debug-stacktrace-002
+title: 修复稀疏表格行列聚合与转置（V2）
+category: debug
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-002}
+agent:
+  system_prompt: |
+    先运行测试复现，修复源码；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  table/ 必须支持 ragged grid：缺失单元按 0，越界正索引行/列和为 0，负索引拒绝；
+  transpose 保留最长行宽并用 fill 补齐。行、列、转置实现均需检查。
+  "缺失单元按 0" 是读取口径：缺的单元只在读到的结果里算作 0，任何函数都不得改写调用方
+  传入的 grid（就地补零会污染调用方的数据），补齐后的新表必须是新建的对象。
+budget: {max_steps: 34, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 36 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'table/grid.py' in state.files_changed and 'table/col.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

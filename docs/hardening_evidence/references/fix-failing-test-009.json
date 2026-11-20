@@ -1,0 +1,198 @@
+{
+ "note": "仅凭题面与 README 迁移步骤推出的参考修复：把 actor 一路穿到每一个 log_activity 调用点，而不是只补可见测试碰到的两类。HTTP 侧每个 handler 先 request.actor()（未认证在任何改动/写行之前抛 AuthenticationError），再把它作为 actor 传给 tracker——补签名 assign_issue/close_issue/rotate_key/add_member/remove_member；run 侧身份走管道：RunContext 与 new_context/context_for 都收 actor，start/progress/finish/cancel 四条记录一律用 ctx.actor，同一次 /runs/start 里 start 之后紧跟的 progress 也属于同一主体；调度侧 execute_job 把 job.requested_by 传进 new_context。归属只是随调用链传递的值，没有'全局当前用户'，故连续两次请求/两个不同 owner 的调度任务各记各的；audit.log 的 local-user 默认值与全部公开接口保持原样，未改 tests/。",
+ "author": "qoder",
+ "calls": [
+  [
+   "read_file",
+   {
+    "path": "README.md"
+   }
+  ],
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "audit/log.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "server/handlers.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "background/runner.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tracker/runs.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tracker/issues.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tracker/agents.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tracker/squads.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tracker/workspace.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tests/test_audit_smoke.py"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "grep",
+   {
+    "pattern": "log_activity("
+   }
+  ],
+  [
+   "grep",
+   {
+    "pattern": "actor=actor"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "server/handlers.py",
+    "old_text": "\"\"\"HTTP handlers.\n\nAuthentication landed here: every routed request carries a verified principal,\nso at the moment a handler calls into the tracker it always knows who is\nasking. ``request.actor()`` raises when there is no principal, which is what\nmakes a request that reaches a handler at all a trustworthy attribution source.\n\"\"\"\nfrom tracker import agents as agents_api\nfrom tracker import issues as issues_api\nfrom tracker import runs as runs_api\nfrom tracker import squads as squads_api\n\n\nclass AuthenticationError(Exception):\n    pass\n\n\nclass Principal:\n    def __init__(self, user_id, scopes=(\"read\", \"write\")):\n        self.user_id = user_id\n        self.scopes = tuple(scopes)\n\n    def has(self, scope):\n        return scope in self.scopes\n\n\nclass Request:\n    def __init__(self, workspace, method, path, body=None, principal=None):\n        self.workspace = workspace\n        self.method = method\n        self.path = path\n        self.body = dict(body or {})\n        self.principal = principal\n\n    def actor(self):\n        if self.principal is None:\n            raise AuthenticationError(f\"{self.method} {self.path} needs a principal\")\n        return self.principal.user_id\n\n\n# ---------------------------------------------------------------- issues ----\n\ndef handle_create_issue(request):\n    issue = issues_api.create_issue(\n        request.workspace, request.body[\"title\"], reporter=request.body[\"reporter\"], actor=request.actor()\n    )\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"status\": issue[\"status\"]}\n\n\ndef handle_comment(request):\n    issue = issues_api.add_comment(\n        request.workspace, request.body[\"issue\"], request.body[\"body\"], actor=request.actor()\n    )\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"comments\": len(issue[\"comments\"])}\n\n\ndef handle_assign(request):\n    issue = issues_api.assign_issue(request.workspace, request.body[\"issue\"], request.body[\"assignee\"])\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"assignee\": issue[\"assignee\"]}\n\n\ndef handle_close_issue(request):\n    issue = issues_api.close_issue(request.workspace, request.body[\"issue\"], request.body[\"resolution\"])\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"status\": issue[\"status\"]}\n\n\ndef handle_reopen(request):\n    issue = issues_api.reopen_issue(request.workspace, request.body[\"issue\"], actor=request.actor())\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"status\": issue[\"status\"]}\n\n\n# ---------------------------------------------------------------- agents ----\n\ndef handle_register_agent(request):\n    agent = agents_api.register_agent(\n        request.workspace, request.body[\"name\"], owner=request.body[\"owner\"], actor=request.actor()\n    )\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"name\": agent[\"name\"]}\n\n\ndef handle_rename_agent(request):\n    agent = agents_api.rename_agent(\n        request.workspace, request.body[\"agent\"], request.body[\"name\"], actor=request.actor()\n    )\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"name\": agent[\"name\"]}\n\n\ndef handle_rotate_key(request):\n    agent = agents_api.rotate_key(request.workspace, request.body[\"agent\"])\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"fingerprint\": agent[\"key\"][:6]}\n\n\ndef handle_set_budget(request):\n    agent = agents_api.set_budget(\n        request.workspace, request.body[\"agent\"], request.body[\"budget\"], actor=request.actor()\n    )\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"budget\": agent[\"budget\"]}\n\n\n# ---------------------------------------------------------------- squads ----\n\ndef handle_create_squad(request):\n    squad = squads_api.create_squad(request.workspace, request.body[\"name\"], actor=request.actor())\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"members\": list(squad[\"members\"])}\n\n\ndef handle_add_member(request):\n    squad = squads_api.add_member(\n        request.workspace, request.body[\"squad\"], request.body[\"member\"], request.body.get(\"role\", \"dev\")\n    )\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"members\": list(squad[\"members\"])}\n\n\ndef handle_remove_member(request):\n    squad = squads_api.remove_member(request.workspace, request.body[\"squad\"], request.body[\"member\"])\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"members\": list(squad[\"members\"])}\n\n\ndef handle_archive_squad(request):\n    squad = squads_api.archive_squad(request.workspace, request.body[\"squad\"], actor=request.actor())\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"archived\": squad[\"archived\"]}\n\n\n# ------------------------------------------------------------------ runs ----\n\ndef handle_start_run(request):\n    workspace = request.workspace\n    run_id = workspace.next_id(\"RUN-\")\n    ctx = runs_api.new_context(workspace, run_id, request.body[\"agent\"], \"http\", request.body.get(\"prompt\", \"\"))\n    run = runs_api.start_run(ctx, request.body.get(\"steps\", 1))\n    runs_api.record_progress(ctx, run[\"steps_planned\"], request.body.get(\"tool_calls\", 0))\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"status\": run[\"status\"]}\n\n\ndef handle_run_progress(request):\n    ctx = runs_api.context_for(request.workspace, request.body[\"run\"], \"http\")\n    run = runs_api.record_progress(ctx, request.body[\"steps\"], request.body[\"tool_calls\"])\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"steps\": run[\"steps\"]}\n\n\ndef handle_finish_run(request):\n    ctx = runs_api.context_for(request.workspace, request.body[\"run\"], \"http\")\n    run = runs_api.finish_run(ctx, request.body.get(\"summary\", \"\"))\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"status\": run[\"status\"]}\n\n\ndef handle_cancel_run(request):\n    ctx = runs_api.context_for(request.workspace, request.body[\"run\"], \"http\")\n    run = runs_api.cancel_run(ctx, request.body.get(\"reason\", \"cancelled by user\"))\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"status\": run[\"status\"]}\n\n\nROUTES = {\n    (\"POST\", \"/issues\"): handle_create_issue,\n    (\"POST\", \"/issues/comment\"): handle_comment,\n    (\"POST\", \"/issues/assign\"): handle_assign,\n    (\"POST\", \"/issues/close\"): handle_close_issue,\n    (\"POST\", \"/issues/reopen\"): handle_reopen,\n    (\"POST\", \"/agents\"): handle_register_agent,\n    (\"POST\", \"/agents/rename\"): handle_rename_agent,\n    (\"POST\", \"/agents/rotate\"): handle_rotate_key,\n    (\"POST\", \"/agents/budget\"): handle_set_budget,\n    (\"POST\", \"/squads\"): handle_create_squad,\n    (\"POST\", \"/squads/members\"): handle_add_member,\n    (\"POST\", \"/squads/members/remove\"): handle_remove_member,\n    (\"POST\", \"/squads/archive\"): handle_archive_squad,\n    (\"POST\", \"/runs/start\"): handle_start_run,\n    (\"POST\", \"/runs/progress\"): handle_run_progress,\n    (\"POST\", \"/runs/finish\"): handle_finish_run,\n    (\"POST\", \"/runs/cancel\"): handle_cancel_run,\n}\n\n\ndef dispatch(request):\n    handler = ROUTES.get((request.method, request.path))\n    if handler is None:\n        raise KeyError(f\"no route for {request.method} {request.path}\")\n    return handler(request)\n",
+    "new_text": "\"\"\"HTTP handlers.\n\nAuthentication landed here: every routed request carries a verified principal,\nso at the moment a handler calls into the tracker it always knows who is\nasking. ``request.actor()`` raises when there is no principal, which is what\nmakes a request that reaches a handler at all a trustworthy attribution source.\n\nEvery handler resolves its principal *first* and then threads it all the way\ndown to ``log_activity`` as ``actor``. Two things follow: an unauthenticated\nrequest is refused before it mutates anything or writes a row, and a row is\nnever left to fall back on ``audit.log``'s ``local-user`` default. The actor is\na value carried through the call chain, never a \"current user\" stored somewhere\nglobal, so two consecutive requests cannot attribute to each other.\n\"\"\"\nfrom tracker import agents as agents_api\nfrom tracker import issues as issues_api\nfrom tracker import runs as runs_api\nfrom tracker import squads as squads_api\n\n\nclass AuthenticationError(Exception):\n    pass\n\n\nclass Principal:\n    def __init__(self, user_id, scopes=(\"read\", \"write\")):\n        self.user_id = user_id\n        self.scopes = tuple(scopes)\n\n    def has(self, scope):\n        return scope in self.scopes\n\n\nclass Request:\n    def __init__(self, workspace, method, path, body=None, principal=None):\n        self.workspace = workspace\n        self.method = method\n        self.path = path\n        self.body = dict(body or {})\n        self.principal = principal\n\n    def actor(self):\n        if self.principal is None:\n            raise AuthenticationError(f\"{self.method} {self.path} needs a principal\")\n        return self.principal.user_id\n\n\n# ---------------------------------------------------------------- issues ----\n\ndef handle_create_issue(request):\n    actor = request.actor()\n    issue = issues_api.create_issue(\n        request.workspace, request.body[\"title\"], reporter=request.body[\"reporter\"], actor=actor\n    )\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"status\": issue[\"status\"]}\n\n\ndef handle_comment(request):\n    actor = request.actor()\n    issue = issues_api.add_comment(\n        request.workspace, request.body[\"issue\"], request.body[\"body\"], actor=actor\n    )\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"comments\": len(issue[\"comments\"])}\n\n\ndef handle_assign(request):\n    actor = request.actor()\n    issue = issues_api.assign_issue(request.workspace, request.body[\"issue\"], request.body[\"assignee\"],\n                                    actor=actor)\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"assignee\": issue[\"assignee\"]}\n\n\ndef handle_close_issue(request):\n    actor = request.actor()\n    issue = issues_api.close_issue(request.workspace, request.body[\"issue\"], request.body[\"resolution\"],\n                                   actor=actor)\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"status\": issue[\"status\"]}\n\n\ndef handle_reopen(request):\n    actor = request.actor()\n    issue = issues_api.reopen_issue(request.workspace, request.body[\"issue\"], actor=actor)\n    return {\"entity\": \"issue\", \"id\": issue[\"id\"], \"status\": issue[\"status\"]}\n\n\n# ---------------------------------------------------------------- agents ----\n\ndef handle_register_agent(request):\n    actor = request.actor()\n    agent = agents_api.register_agent(\n        request.workspace, request.body[\"name\"], owner=request.body[\"owner\"], actor=actor\n    )\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"name\": agent[\"name\"]}\n\n\ndef handle_rename_agent(request):\n    actor = request.actor()\n    agent = agents_api.rename_agent(\n        request.workspace, request.body[\"agent\"], request.body[\"name\"], actor=actor\n    )\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"name\": agent[\"name\"]}\n\n\ndef handle_rotate_key(request):\n    actor = request.actor()\n    agent = agents_api.rotate_key(request.workspace, request.body[\"agent\"], actor=actor)\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"fingerprint\": agent[\"key\"][:6]}\n\n\ndef handle_set_budget(request):\n    actor = request.actor()\n    agent = agents_api.set_budget(\n        request.workspace, request.body[\"agent\"], request.body[\"budget\"], actor=actor\n    )\n    return {\"entity\": \"agent\", \"id\": agent[\"id\"], \"budget\": agent[\"budget\"]}\n\n\n# ---------------------------------------------------------------- squads ----\n\ndef handle_create_squad(request):\n    actor = request.actor()\n    squad = squads_api.create_squad(request.workspace, request.body[\"name\"], actor=actor)\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"members\": list(squad[\"members\"])}\n\n\ndef handle_add_member(request):\n    actor = request.actor()\n    squad = squads_api.add_member(\n        request.workspace, request.body[\"squad\"], request.body[\"member\"],\n        request.body.get(\"role\", \"dev\"), actor=actor\n    )\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"members\": list(squad[\"members\"])}\n\n\ndef handle_remove_member(request):\n    actor = request.actor()\n    squad = squads_api.remove_member(request.workspace, request.body[\"squad\"], request.body[\"member\"],\n                                     actor=actor)\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"members\": list(squad[\"members\"])}\n\n\ndef handle_archive_squad(request):\n    actor = request.actor()\n    squad = squads_api.archive_squad(request.workspace, request.body[\"squad\"], actor=actor)\n    return {\"entity\": \"squad\", \"id\": squad[\"id\"], \"archived\": squad[\"archived\"]}\n\n\n# ------------------------------------------------------------------ runs ----\n# A run is built on a RunContext, so the principal has to ride inside the\n# context: everything a run path logs comes from ctx.actor.\n\ndef handle_start_run(request):\n    actor = request.actor()\n    workspace = request.workspace\n    run_id = workspace.next_id(\"RUN-\")\n    ctx = runs_api.new_context(\n        workspace, run_id, request.body[\"agent\"], \"http\", request.body.get(\"prompt\", \"\"), actor\n    )\n    run = runs_api.start_run(ctx, request.body.get(\"steps\", 1))\n    # The progress row written right after start belongs to the same principal.\n    runs_api.record_progress(ctx, run[\"steps_planned\"], request.body.get(\"tool_calls\", 0))\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"status\": run[\"status\"]}\n\n\ndef handle_run_progress(request):\n    actor = request.actor()\n    ctx = runs_api.context_for(request.workspace, request.body[\"run\"], \"http\", actor)\n    run = runs_api.record_progress(ctx, request.body[\"steps\"], request.body[\"tool_calls\"])\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"steps\": run[\"steps\"]}\n\n\ndef handle_finish_run(request):\n    actor = request.actor()\n    ctx = runs_api.context_for(request.workspace, request.body[\"run\"], \"http\", actor)\n    run = runs_api.finish_run(ctx, request.body.get(\"summary\", \"\"))\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"status\": run[\"status\"]}\n\n\ndef handle_cancel_run(request):\n    actor = request.actor()\n    ctx = runs_api.context_for(request.workspace, request.body[\"run\"], \"http\", actor)\n    run = runs_api.cancel_run(ctx, request.body.get(\"reason\", \"cancelled by user\"))\n    return {\"entity\": \"run\", \"id\": run[\"id\"], \"status\": run[\"status\"]}\n\n\nROUTES = {\n    (\"POST\", \"/issues\"): handle_create_issue,\n    (\"POST\", \"/issues/comment\"): handle_comment,\n    (\"POST\", \"/issues/assign\"): handle_assign,\n    (\"POST\", \"/issues/close\"): handle_close_issue,\n    (\"POST\", \"/issues/reopen\"): handle_reopen,\n    (\"POST\", \"/agents\"): handle_register_agent,\n    (\"POST\", \"/agents/rename\"): handle_rename_agent,\n    (\"POST\", \"/agents/rotate\"): handle_rotate_key,\n    (\"POST\", \"/agents/budget\"): handle_set_budget,\n    (\"POST\", \"/squads\"): handle_create_squad,\n    (\"POST\", \"/squads/members\"): handle_add_member,\n    (\"POST\", \"/squads/members/remove\"): handle_remove_member,\n    (\"POST\", \"/squads/archive\"): handle_archive_squad,\n    (\"POST\", \"/runs/start\"): handle_start_run,\n    (\"POST\", \"/runs/progress\"): handle_run_progress,\n    (\"POST\", \"/runs/finish\"): handle_finish_run,\n    (\"POST\", \"/runs/cancel\"): handle_cancel_run,\n}\n\n\ndef dispatch(request):\n    handler = ROUTES.get((request.method, request.path))\n    if handler is None:\n        raise KeyError(f\"no route for {request.method} {request.path}\")\n    return handler(request)\n"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/runs.py",
+    "old_text": "\"\"\"Run bookkeeping for agent work.\n\nA run is never mutated straight from a request: the caller first builds a\n``RunContext`` and hands that around, so everything a run path knows about the\noutside world has to be inside the context.\n\"\"\"\nfrom audit.log import log_activity\n\nENTITY = \"run\"\n\n\nclass RunContext:\n    def __init__(self, workspace, run_id, agent, source, prompt):\n        self.workspace = workspace\n        self.run_id = run_id\n        self.agent = agent\n        self.source = source  # \"http\" | \"scheduler\" | \"cli\"\n        self.prompt = prompt\n\n    def snapshot(self):\n        return {\n            \"run_id\": self.run_id,\n            \"agent\": self.agent,\n            \"source\": self.source,\n            \"workspace\": self.workspace.name,\n        }\n\n\ndef new_context(workspace, run_id, agent, source, prompt):\n    \"\"\"Context for a run that has not been registered yet.\"\"\"\n    return RunContext(workspace, run_id, agent, source, prompt)\n\n\ndef context_for(workspace, run_id, source):\n    \"\"\"Context rebuilt from an existing run, for the stateless HTTP handlers.\"\"\"\n    run = workspace.runs.get(run_id)\n    if run is None:\n        raise KeyError(f\"no run {run_id} in {workspace.name}\")\n    return RunContext(workspace, run_id, run[\"agent\"], source, run[\"prompt\"])\n\n\ndef _require(ctx):\n    run = ctx.workspace.runs.get(ctx.run_id)\n    if run is None:\n        raise KeyError(f\"no run {ctx.run_id} in {ctx.workspace.name}\")\n    return run\n\n\ndef start_run(ctx, steps):\n    run = {\n        \"id\": ctx.run_id,\n        \"agent\": ctx.agent,\n        \"source\": ctx.source,\n        \"prompt\": ctx.prompt,\n        \"status\": \"running\",\n        \"steps\": 0,\n        \"tool_calls\": 0,\n        \"steps_planned\": int(steps),\n    }\n    ctx.workspace.runs[ctx.run_id] = run\n    log_activity(\n        ctx.workspace.name, ENTITY, ctx.run_id, \"start\",\n        {\"agent\": ctx.agent, \"source\": ctx.source, \"steps\": int(steps)},\n    )\n    return dict(run)\n\n\ndef record_progress(ctx, steps, tool_calls):\n    run = _require(ctx)\n    run[\"steps\"] += int(steps)\n    run[\"tool_calls\"] += int(tool_calls)\n    log_activity(\n        ctx.workspace.name, ENTITY, ctx.run_id, \"progress\",\n        {\"steps\": int(steps), \"tool_calls\": int(tool_calls)},\n    )\n    return dict(run)\n\n\ndef finish_run(ctx, summary):\n    run = _require(ctx)\n    run[\"status\"] = \"finished\"\n    log_activity(ctx.workspace.name, ENTITY, ctx.run_id, \"finish\", {\"chars\": len(summary)})\n    return dict(run)\n\n\ndef cancel_run(ctx, reason):\n    run = _require(ctx)\n    run[\"status\"] = \"cancelled\"\n    log_activity(ctx.workspace.name, ENTITY, ctx.run_id, \"cancel\", {\"reason\": reason})\n    return dict(run)\n",
+    "new_text": "\"\"\"Run bookkeeping for agent work.\n\nA run is never mutated straight from a request: the caller first builds a\n``RunContext`` and hands that around, so everything a run path knows about the\noutside world has to be inside the context -- including who asked for it.\n``actor`` is therefore part of the context plumbing: both constructors take it,\nand every row written below is attributed to ``ctx.actor`` instead of falling\nback to the ``local-user`` default. Nothing here keeps a \"current user\" around,\nso one job's owner can never leak into the next job's rows.\n\"\"\"\nfrom audit.log import log_activity\n\nENTITY = \"run\"\n\n\nclass RunContext:\n    def __init__(self, workspace, run_id, agent, source, prompt, actor):\n        self.workspace = workspace\n        self.run_id = run_id\n        self.agent = agent\n        self.source = source  # \"http\" | \"scheduler\" | \"cli\"\n        self.prompt = prompt\n        self.actor = actor    # the principal that caused every row of this run\n\n    def snapshot(self):\n        return {\n            \"run_id\": self.run_id,\n            \"agent\": self.agent,\n            \"source\": self.source,\n            \"workspace\": self.workspace.name,\n        }\n\n\ndef new_context(workspace, run_id, agent, source, prompt, actor):\n    \"\"\"Context for a run that has not been registered yet.\"\"\"\n    return RunContext(workspace, run_id, agent, source, prompt, actor)\n\n\ndef context_for(workspace, run_id, source, actor):\n    \"\"\"Context rebuilt from an existing run, for the stateless HTTP handlers.\"\"\"\n    run = workspace.runs.get(run_id)\n    if run is None:\n        raise KeyError(f\"no run {run_id} in {workspace.name}\")\n    return RunContext(workspace, run_id, run[\"agent\"], source, run[\"prompt\"], actor)\n\n\ndef _require(ctx):\n    run = ctx.workspace.runs.get(ctx.run_id)\n    if run is None:\n        raise KeyError(f\"no run {ctx.run_id} in {ctx.workspace.name}\")\n    return run\n\n\ndef start_run(ctx, steps):\n    run = {\n        \"id\": ctx.run_id,\n        \"agent\": ctx.agent,\n        \"source\": ctx.source,\n        \"prompt\": ctx.prompt,\n        \"status\": \"running\",\n        \"steps\": 0,\n        \"tool_calls\": 0,\n        \"steps_planned\": int(steps),\n    }\n    ctx.workspace.runs[ctx.run_id] = run\n    log_activity(\n        ctx.workspace.name, ENTITY, ctx.run_id, \"start\",\n        {\"agent\": ctx.agent, \"source\": ctx.source, \"steps\": int(steps)}, actor=ctx.actor,\n    )\n    return dict(run)\n\n\ndef record_progress(ctx, steps, tool_calls):\n    run = _require(ctx)\n    run[\"steps\"] += int(steps)\n    run[\"tool_calls\"] += int(tool_calls)\n    log_activity(\n        ctx.workspace.name, ENTITY, ctx.run_id, \"progress\",\n        {\"steps\": int(steps), \"tool_calls\": int(tool_calls)}, actor=ctx.actor,\n    )\n    return dict(run)\n\n\ndef finish_run(ctx, summary):\n    run = _require(ctx)\n    run[\"status\"] = \"finished\"\n    log_activity(ctx.workspace.name, ENTITY, ctx.run_id, \"finish\", {\"chars\": len(summary)},\n                 actor=ctx.actor)\n    return dict(run)\n\n\ndef cancel_run(ctx, reason):\n    run = _require(ctx)\n    run[\"status\"] = \"cancelled\"\n    log_activity(ctx.workspace.name, ENTITY, ctx.run_id, \"cancel\", {\"reason\": reason},\n                 actor=ctx.actor)\n    return dict(run)\n"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/issues.py",
+    "old_text": "def assign_issue(ws, issue_id, assignee):",
+    "new_text": "def assign_issue(ws, issue_id, assignee, *, actor):"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/issues.py",
+    "old_text": "    log_activity(ws.name, ENTITY, issue_id, \"assign\", {\"assignee\": assignee})",
+    "new_text": "    log_activity(ws.name, ENTITY, issue_id, \"assign\", {\"assignee\": assignee}, actor=actor)"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/issues.py",
+    "old_text": "def close_issue(ws, issue_id, resolution):",
+    "new_text": "def close_issue(ws, issue_id, resolution, *, actor):"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/issues.py",
+    "old_text": "    log_activity(ws.name, ENTITY, issue_id, \"close\", {\"resolution\": resolution})",
+    "new_text": "    log_activity(ws.name, ENTITY, issue_id, \"close\", {\"resolution\": resolution}, actor=actor)"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/agents.py",
+    "old_text": "def rotate_key(ws, agent_id):",
+    "new_text": "def rotate_key(ws, agent_id, *, actor):"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/agents.py",
+    "old_text": "    log_activity(ws.name, ENTITY, agent_id, \"rotate_key\", {\"fingerprint\": secret[:6]})",
+    "new_text": "    log_activity(ws.name, ENTITY, agent_id, \"rotate_key\", {\"fingerprint\": secret[:6]}, actor=actor)"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/squads.py",
+    "old_text": "def add_member(ws, squad_id, user_id, role):",
+    "new_text": "def add_member(ws, squad_id, user_id, role, *, actor):"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/squads.py",
+    "old_text": "    log_activity(ws.name, ENTITY, squad_id, \"add_member\", {\"member\": user_id, \"role\": role})",
+    "new_text": "    log_activity(ws.name, ENTITY, squad_id, \"add_member\", {\"member\": user_id, \"role\": role}, actor=actor)"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/squads.py",
+    "old_text": "def remove_member(ws, squad_id, user_id):",
+    "new_text": "def remove_member(ws, squad_id, user_id, *, actor):"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "tracker/squads.py",
+    "old_text": "    log_activity(ws.name, ENTITY, squad_id, \"remove_member\", {\"member\": user_id})",
+    "new_text": "    log_activity(ws.name, ENTITY, squad_id, \"remove_member\", {\"member\": user_id}, actor=actor)"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "background/runner.py",
+    "old_text": "    ctx = runs_api.new_context(job.workspace, job.run_id, job.agent, \"scheduler\", job.prompt)",
+    "new_text": "    # 调度任务没有 HTTP 请求，主体就是排程的所有者；它随上下文一起流到 run 的每一行。\n    ctx = runs_api.new_context(job.workspace, job.run_id, job.agent, \"scheduler\", job.prompt,\n                               job.requested_by)"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

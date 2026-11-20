@@ -1,0 +1,66 @@
+{
+ "note": "仅凭题面与记忆闭环规范推出的参考闭环：先 memory_search 取回团队已批准的生产发布策略（release:production-policy：5%/25%/100% 三阶段、每阶段观察 15 分钟、回滚条件原文“5xx_rate > 1% 或 p95_ms > 800 立即回滚”），核对它与 release.json 与题面都没有冲突——旧记忆未被推翻，因此只做原位引用，不调用 memory_update（update_calls 必须为 0）；再由脚本 scripts/make_rollout.py 读 release.json（输入只读不改）生成 out/rollout.csv 与 release_note.md，回滚条件逐字复用、每阶段完整重复，并把两份产物读回逐项核对后才收尾；最后按规范 memory_write 一条本次发布身份（checkout/v3.2.1/production/8d73c33d9f5a/expand-only + 策略来源），闭环完成后 done。",
+ "author": "qoder",
+ "calls": [
+  [
+   "memory_search",
+   {
+    "query": "生产发布 策略 阶段 流量 观察 回滚 条件",
+    "limit": 5
+   }
+  ],
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "release.json"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "scripts/make_rollout.py",
+    "content": "\"\"\"生成并核对发布产物：out/rollout.csv 与 release_note.md。\n\n输入 release.json 只读不改；两个产物都由本脚本产生，不手写。\n\n阶段/流量/观察时长/回滚条件来自团队已批准并被 memory_search 取回的生产发布策略\n（记忆条目 release:production-policy，origin=platform-approved，未被任何证据推翻）：\n\"生产发布采用 5%、25%、100% 三阶段；每阶段观察 15 分钟；\n5xx_rate > 1% 或 p95_ms > 800 立即回滚。\" 三个分句以 ； 分隔，回滚条件这个语义单元是\n\"5xx_rate > 1% 或 p95_ms > 800 立即回滚\"，句末 。 属于整句而非该条件；题面要求逐字复用，\n故原文照抄，不翻译、不改写、不弱化，并在每个阶段完整重复。\n\"\"\"\nimport csv\nimport hashlib\nimport json\nimport os\n\n# 已批准策略的三个分句（逐字抄自记忆条目）\nPOLICY_TRAFFIC = [\"5\", \"25\", \"100\"]\nPOLICY_OBSERVE_MINUTES = \"15\"\nPOLICY_ROLLBACK = \"5xx_rate > 1% 或 p95_ms > 800 立即回滚\"\n\nCOLUMNS = [\"stage\", \"traffic_percent\", \"observe_minutes\", \"rollback_condition\"]\nNOTE_FIELDS = [\"service\", \"version\", \"target\", \"artifact_sha256\", \"database_migration\"]\n\n\ndef build_rows():\n    rows = []\n    for index, traffic in enumerate(POLICY_TRAFFIC, start=1):\n        # 回滚条件在每阶段完整重复，且每阶段都是同一句原文\n        rows.append([str(index), traffic, POLICY_OBSERVE_MINUTES, POLICY_ROLLBACK])\n    return rows\n\n\ndef main():\n    with open(\"release.json\", encoding=\"utf-8\") as handle:\n        release = json.load(handle)\n    missing = [field for field in NOTE_FIELDS if not release.get(field)]\n    assert not missing, f\"release.json 缺字段: {missing}\"\n\n    os.makedirs(\"out\", exist_ok=True)\n    rows = build_rows()\n    with open(\"out/rollout.csv\", \"w\", encoding=\"utf-8\", newline=\"\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow(COLUMNS)\n        writer.writerows(rows)\n\n    note = [\"# 发布说明 \" + release[\"service\"] + \" \" + release[\"version\"], \"\"]\n    note += [f\"- {field}: {release[field]}\" for field in NOTE_FIELDS]\n    note += [\"\", f\"- rollout_artifact: out/rollout.csv（{len(rows)} 阶段，流量 {'/'.join(POLICY_TRAFFIC)}%）\",\n             f\"- observe_minutes: {POLICY_OBSERVE_MINUTES}\",\n             f\"- rollback_condition: {POLICY_ROLLBACK}\",\n             \"- policy_source: 团队已批准的生产发布策略（持久记忆 release:production-policy）\", \"\"]\n    with open(\"release_note.md\", \"w\", encoding=\"utf-8\") as handle:\n        handle.write(\"\\n\".join(note))\n\n    # ---- 核对：把产物读回来，逐字段比对策略与 release.json ----\n    with open(\"out/rollout.csv\", encoding=\"utf-8\", newline=\"\") as handle:\n        back = list(csv.reader(handle))\n    assert back[0] == COLUMNS, back[0]\n    assert back[1:] == rows, back[1:]\n    assert [r[1] for r in back[1:]] == POLICY_TRAFFIC\n    assert all(r[2] == POLICY_OBSERVE_MINUTES for r in back[1:])\n    assert all(r[3] == POLICY_ROLLBACK for r in back[1:]), \"回滚条件被改写/翻译即不合规\"\n    assert all(r[3].startswith(\"5xx_rate\") and \"或\" in r[3] and r[3].endswith(\"立即回滚\") for r in back[1:])\n    with open(\"release_note.md\", encoding=\"utf-8\") as handle:\n        text = handle.read()\n    for field in NOTE_FIELDS:\n        assert release[field] in text, f\"release_note.md 未写明 {field}\"\n    digest = hashlib.sha256(open(\"out/rollout.csv\", \"rb\").read()).hexdigest()\n    print(\"rollout stages:\", len(back) - 1, \"| columns:\", \",\".join(back[0]))\n    print(\"rollback_condition verbatim:\", back[1][3])\n    print(\"release_note fields ok for:\", \", \".join(NOTE_FIELDS))\n    print(\"inputs untouched:\", sorted(os.listdir(\".\")))\n    print(\"out/rollout.csv sha256:\", digest)\n\n\nmain()\n"
+   }
+  ],
+  [
+   "run_bash",
+   {
+    "cmd": "python3 scripts/make_rollout.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/rollout.csv"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "release_note.md"
+   }
+  ],
+  [
+   "memory_write",
+   {
+    "key": "release:checkout-v3.2.1-production-identity",
+    "content": "本次生产发布身份（来源：release.json 实读 + scripts/make_rollout.py 生成并核对的产物）：service=checkout version=v3.2.1 target=production artifact_sha256=8d73c33d9f5a database_migration=expand-only。灰度按已批准策略执行：out/rollout.csv 三阶段 5%/25%/100%、每阶段观察 15 分钟，回滚条件逐字复用策略原文（持久记忆 release:production-policy，未被证据推翻，故只引用不修正）：5xx_rate > 1% 或 p95_ms > 800 立即回滚。后续审计以本条定位这次具体发布；脚本 scripts/make_rollout.py 只是生成器位置，不是发布事实本身。",
+    "tags": [
+     "release",
+     "checkout",
+     "v3.2.1",
+     "production",
+     "audit"
+    ]
+   }
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

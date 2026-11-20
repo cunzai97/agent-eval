@@ -1,0 +1,32 @@
+id: sched-dualgpu-001
+title: 双卡推理流水线调度（prefill 负载均衡 + 单卡 decode，无重叠）
+category: script-dev
+tags: [planning, scheduling, simulation]
+difficulty: hard
+environment: {name: code_repo, snapshot: dualgpu_sched}
+agent:
+  system_prompt: |
+    按仓库根 spec.md 的契约实现 schedule(devices, requests)。两阶段：先做 prefill 负载均衡
+    指派（最小化两卡 prefill makespan 的较大者），再单卡顺序 decode。先读规格与可见测试，
+    实现后跑测试；边界与精确数值是验收关键。禁止修改 tests/。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  sched/scheduler.py 目前是空壳（schedule 抛 NotImplementedError）。请严格按 spec.md 实现
+  schedule(devices, requests) -> {"makespan": float, "completion": {id: float}}：
+  阶段一 prefill——每个请求的 prompt 整体指派到一张卡，指派目标是最小化"两卡 prompt 之和
+  ÷ 各自 prefill_tps"的较大者（平分取字典序较小的指派）；阶段二 decode——所有 decode 顺序
+  跑在 decode_tps 更大的卡上，顺序 = 请求输入顺序，完成时刻 = prefill_makespan + 累计
+  completion_len ÷ decode_tps。prefill 阶段结束前任何 decode 不得开始。
+  只改 sched/scheduler.py，不要动 tests/ 与 spec.md。实现后运行测试确认全绿。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'sched/scheduler.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

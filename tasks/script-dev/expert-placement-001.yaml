@@ -1,0 +1,32 @@
+id: expert-placement-001
+title: MoE 专家三级放置与 LRU 驱逐成本记账（热点/批内共访/级联 demote）
+category: script-dev
+tags: [planning, scheduling, simulation]
+difficulty: hard
+environment: {name: code_repo, snapshot: expert_placement}
+agent:
+  system_prompt: |
+    按仓库根 spec.md 的契约实现 place_and_replay(experts, capacities, read_cost, trace)。
+    严格按步推进：rank/la/loc 维护、目标层判定、vram/ram 满时 LRU 驱逐与 demote、按落地层
+    记账。先读规格与可见测试，实现后跑测试；驱逐序列与总成本的精确值是验收关键。禁止改 tests/。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  moesim/placement.py 目前是空壳（place_and_replay 抛 NotImplementedError）。请严格按 spec.md
+  实现 place_and_replay -> {"total_cost": float, "evictions": [(step,name,from,to),...],
+  "final_tiers": {name: tier}}：每位专家按 distinct 访问步数判层（rank>=3 热点→vram，
+  rank>=1 温→ram，否则 disk）；目标层满时驱逐该层 la 最小者（并列取字典序小者），vram 驱逐
+  demote 到 ram（装得下）否则 disk，ram 驱逐直接到 disk；每次访问按专家落地层计一次读成本；
+  一步内被共同访问的多个专家按给定顺序逐个推进。
+  只改 moesim/placement.py，不要动 tests/ 与 spec.md。实现后运行测试确认全绿。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'moesim/placement.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

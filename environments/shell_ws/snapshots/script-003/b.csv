@@ -1,0 +1,4 @@
+status,value,record_id,updated_at
+ok,5,b1,2025-01-01T00:00:00Z
+ok,15,b2,2025-01-01T00:00:00Z
+ok,-2,b3,2025-01-01T00:00:00Z

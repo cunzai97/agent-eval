@@ -1,0 +1,46 @@
+name: horizon
+description: 5 道新增中长链路编程题 + 12 道历史中等耗时、有区分度的题；全部确定性判分，无 LLM 裁判。生成于 2026-10-28
+source: runs/_HISTORY.jsonl 最近每个 model-task 的有效尝试 + docs/hardening_evidence/references
+selection:
+  excluded_long: [debug-stacktrace-010, script-dev-007, fix-failing-test-009]
+  excluded_high_cost_low_discrimination: [fix-cancel-001, script-loopguard-001, debug-stacktrace-008, liberty-extract-001]
+  excluded_zero_discrimination: [fix-cap-001, debug-stacktrace-009]
+  excluded_wall: [fix-failing-test-008, debug-stacktrace-008, liberty-extract-001]
+  excluded_rubric: [data-pipeline-007, data-pipeline-008, data-pipeline-009, memory-loop-001, memory-loop-002, memory-loop-003, memory-loop-004]
+  note: 旧题口径为同一模型同一题最近一次 graded 尝试，n>=20、通过率 40%–89%、中位耗时 <=300s；实测 42.6%–88.9%、46–286s。新增题尚无模型耗时样本，预算均为 720s。剔除 debug-stacktrace-010(477s)、script-dev-007(378s)、fix-failing-test-009(342s) 三题替换为中等耗时长链路题。
+tasks:
+  - fix-stream-window-001
+  - fix-retry-scheduler-001
+  - fix-config-stack-001
+  - fix-dep-graph-001
+  - fix-migration-flow-001
+  - locate-bug-001
+  - debug-stacktrace-001
+  - debug-stacktrace-005
+  - fix-failing-test-002
+  - fix-failing-test-003
+  - fix-failing-test-007
+  - locate-bug-008
+  - data-pipeline-006
+  - script-dev-002
+  - script-dev-003
+  - script-dev-005
+  - script-dev-006
+detail:
+  fix-stream-window-001: NEW; 34 hidden checks; reference + negative controls
+  fix-retry-scheduler-001: NEW; 51 hidden checks; reference + negative controls
+  fix-config-stack-001: NEW; 36 hidden checks; reference + negative controls
+  fix-dep-graph-001: NEW; 64 hidden checks; reference + negative controls
+  fix-migration-flow-001: NEW; 34 hidden checks; reference + negative controls
+  locate-bug-001: 42.6% (23/54); median 45.9s
+  debug-stacktrace-001: 71.7% (38/53); median 136.3s
+  debug-stacktrace-005: 79.2% (42/53); median 101.3s
+  fix-failing-test-002: 69.8% (37/53); median 143.6s
+  fix-failing-test-003: 70.4% (38/54); median 243.9s
+  fix-failing-test-007: 88.9% (48/54); median 172.8s
+  locate-bug-008: 84.0% (21/25); median 102.3s
+  data-pipeline-006: 78.6% (44/56); median 184.9s
+  script-dev-002: 75.9% (41/54); median 237.0s
+  script-dev-003: 81.5% (44/54); median 186.3s
+  script-dev-005: 81.1% (43/53); median 286.3s
+  script-dev-006: 77.4% (41/53); median 210.7s

@@ -1,0 +1,10 @@
+id,updated_at,name,dept,salary,active
+e1,2025-01-01T00:00:00Z,Alice,eng,"$1,000",true
+e1,2025-01-02T00:00:00Z,Alice,eng,"$1,200",true
+e2,2025-01-01T00:00:00Z,Bob,eng,,true
+e3,2025-01-01T00:00:00Z,Cara,eng,"$1,800",true
+e4,2025-01-01T00:00:00Z,Dan,sales,900,true
+e5,2025-01-01T00:00:00Z,Eve,sales,"1,100",true
+e6,2025-01-01T00:00:00Z,Fay,sales,,true
+e7,2025-01-01T00:00:00Z,Gus,eng,500,false
+e8,2025-01-01T00:00:00Z,Hao,sales,-5,true

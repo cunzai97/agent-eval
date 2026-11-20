@@ -1,0 +1,49 @@
+id: memory-loop-003
+title: 配置证据优先的告警识别与旧运行手册修正
+category: memory-loop
+tags: [planning, recovery, state-tracking, constraint]
+difficulty: hard
+environment: {name: memory_shell_ws, snapshot: memory-ops-003}
+agent:
+  system_prompt: |
+    你是当班 SRE。遵循统一记忆闭环规范：任务开始时主动检索并核验相关持久记忆；把记忆视为待验证假设；
+    任务完成前必须闭合记忆，且一次任务只允许一次记忆变更：新验证的结论若是对已有条目的更正（旧记忆已被证据推翻），
+    用 memory_update 原位改写那一条，不得再另写一条与之并存的新条目；只有记忆里本来没有对应条目时才用 memory_write 新建；
+    除这一次变更外不得再记录其他记忆条目。完成闭环后再 done。
+    应以当前标记为 source_of_truth 的配置和原始指标为准，不得修改输入。
+  tools: [memory_search, list_files, read_file, write_file, run_bash, memory_write, memory_update, done]
+task_prompt: |
+  根据 service.json 的当前规则处理 metrics.csv，识别所有满足条件的连续事故窗口，生成 out/incidents.csv。
+  列严格为 service,start_local,end_local,minutes,peak_error_rate；本地时间格式 YYYY-MM-DD HH:MM，峰值固定两位小数，
+  按开始时间升序。低于形成窗口长度的片段不输出。实现为可复用脚本并真实运行，不得修改输入文件。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.incidents.columns == ['service', 'start_local', 'end_local', 'minutes', 'peak_error_rate'] and state.csv.incidents.rows == [['checkout', '2025-05-01 23:59', '2025-05-02 00:01', '3', '0.80']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: state_assert
+    expr: "all(text in state.memory.by_key['checkout:alert-window-policy'].content for text in ['Asia/Shanghai', '0.5', '3']) and ('service.json' in state.memory.by_key['checkout:alert-window-policy'].content or 'service.json' in state.memory.by_key['checkout:alert-window-policy'].tags or 'service.json' in state.memory.by_key['checkout:alert-window-policy'].last_correction_reason)"
+  - type: state_assert
+    expr: "state.memory.by_key['checkout:alert-window-policy'].version == 5 and len(state.memory.by_key['checkout:alert-window-policy'].last_correction_reason) >= 4"
+  - type: state_assert
+    expr: "state.memory.metrics.search_calls >= 1 and state.memory.metrics.update_calls == 1 and state.memory.metrics.write_calls == 0"
+  - type: tool_used
+    name: memory_search
+  - type: tool_used
+    name: memory_update
+  - type: tool_used
+    name: run_bash
+  - type: order_of
+    tools: [memory_search, write_file, run_bash, memory_update, done]
+# 保留裁判的唯一理由：数字与记忆的**来源**无法从终态判定——产物数字全对，可能是脚本算
+# 出来的，也可能是硬编码或对 read_file 片段的小样本估算。judge_id 把尺钉死在这里：
+# 换裁判档案=换评分标准，实跑与它不符时该次判定记『未评』。
+# N1（扰动输入后复算同一脚本）建成之后，这一档裁判就该被它替换掉并删除。
+judge_id: luna-6:gpt-6-luna
+rubric: |
+  维度：
+  - source_priority：是否明确以 source_of_truth 配置和原始指标推翻旧运行手册，而非盲从记忆。
+  - correction_quality：原位修正是否说明时区、阈值比较、连续分钟数、证据来源及旧结论错误点。
+  - reuse_value：修正后的记忆是否足以指导下一次 checkout 事故窗口判断且不夹带仅适用于本样例的噪声。
+  判定要求：三个维度均有轨迹和终态证据为 pass；内容基本正确但欠缺解释为 partial；保留冲突旧记忆或新建冲突条目为 fail。

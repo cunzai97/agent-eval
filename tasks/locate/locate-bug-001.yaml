@@ -1,0 +1,37 @@
+id: locate-bug-001
+title: 在多故障测试集中隔离区间语义根因（V3）
+category: locate
+tags: [planning]
+difficulty: hard
+environment: {name: code_repo, snapshot: calc_buggy}
+agent:
+  system_prompt: |
+    你是资深故障定位工程师。先复现，再从失败表象跨层追到首次引入错误语义的定义点；不要修改代码。最终用 answer 提交任务要求的结构化证据，随后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  数学工具的完整测试同时暴露多个互不相关的失败。本次事故只关注 sum_range：n=1 时返回 0，
+  且任意正整数都少计末项。不要把门面调用者或传播错误的中间层当作根因；请定位首次把
+  “闭区间”契约翻译错误的定义点。必须运行完整测试并通过搜索、阅读确认调用链，禁止改代码。
+
+  用 answer 提交单行 JSON，且只能包含 file、symbol、cause 三个键。cause 从以下代码选择：
+  exclusive-upper-bound、wrong-weight-denominator、reversed-bounds-normalized。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'file': 'calc/bounds.py', 'symbol': 'inclusive_stop', 'cause': 'exclusive-upper-bound'}"
+  - type: state_assert
+    expr: "'calc/bounds.py' in state.files_read and state.grep_calls >= 1 and state.test_runs >= 1"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: grep
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

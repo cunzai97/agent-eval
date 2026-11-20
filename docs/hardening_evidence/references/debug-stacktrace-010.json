@@ -1,0 +1,98 @@
+{
+ "note": "仅凭题面与 README 发布不变量推出的参考修复（两处偏差都修，且都在快路径一侧）：1) bars.HISTORY_BARS 由旧粗筛的 80 根改为 LOOKBACK + 1（251 根 = 报告日之前 250 根前值 + 报告日自身），改的是模块级默认值本身而不是调用处临时传 limit，快路径仍然只走 bars.stream() 预取，未回落到 full_series/慢路径；2) fastscan.NewHighTracker.push 的命中口径由 close >= max(prior) 改为严格大于，持平不算刷新（MEDX/ELEV=False），窗口仍是 maxlen=lookback 的 deque，恰好 250 根前值且含最老一根（RAIL=False、HDIX 窗口外高点压不住=True），前值不足 lookback 根时仍返回 None（MICRO=None）。公开接口、参数默认值形式、返回类型与合成序列均未改动。生成前已在临时副本上把 tracker 与 window.new_high_at 在 400 组随机输入上逐根对拍（含持平与尖峰形态），并实测 naive.scan_all()==fastscan.scan_all()、report.diff()==[]、publish()['consistent'] is True。",
+ "author": "qoder",
+ "calls": [
+  [
+   "read_file",
+   {
+    "path": "README.md"
+   }
+  ],
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "logs/2025-09-publish.log"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "breadth/window.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "breadth/bars.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "breadth/naive.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "breadth/fastscan.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "breadth/report.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tests/test_breadth_visible.py"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "grep",
+   {
+    "pattern": "HISTORY_BARS"
+   }
+  ],
+  [
+   "grep",
+   {
+    "pattern": "max(self._prior)"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "breadth/bars.py",
+    "old_text": "HISTORY_BARS = 80       # 快路径单次预取的根数（旧粗筛留下的默认值）",
+    "new_text": "HISTORY_BARS = LOOKBACK + 1   # 报告日之前 LOOKBACK 根前值 + 报告日自身（250 + 1）"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "breadth/fastscan.py",
+    "old_text": "            flag = close >= max(self._prior)",
+    "new_text": "            flag = close > max(self._prior)     # 持平前高不算刷新"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

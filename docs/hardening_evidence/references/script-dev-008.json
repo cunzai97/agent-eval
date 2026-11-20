@@ -1,0 +1,76 @@
+{
+ "note": "仅凭题面推出的参考解：先 list_files/read_file 看清工作区真实落盘的是 pipeline/（交接稿说的目录名是错的）、main.py 把 data/in.csv 与 out/report.csv 按当前工作目录解析、而执行器的 cwd 是仓库根目录，于是先用题面点名的那条命令 `python3 pipeline/main.py` 复现一次 FileNotFoundError（只复现一次，不原样重试），再改代码：main.py 以 os.path.abspath(__file__) 的目录为基准解析输入输出并把该目录加入 sys.path 以便导入未改动的 metrics.py，因此从根目录或从 pipeline/ 启动都产出同一份 pipeline/out/report.csv；同时真的改写仓库根目录的 run.sh（不再出现错误目录名，直接 python3 pipeline/main.py）。in.csv 与 metrics.py 一字未动，报表由管线自己算出：north 2/4/26.00/6.50、south 2/4/19.25/4.81、west 1/2/10.00/5.00，三组 held-out 输入（含空值/负值/并列、单行单标的）与 run.sh 探针全部通过，隐藏用例 3/3。用于证明 script-dev-008 可解，不依赖任何模型。",
+ "author": "qoder",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "HANDOFF.md"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "run.sh"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "pipeline/main.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "pipeline/metrics.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "pipeline/data/in.csv"
+   }
+  ],
+  [
+   "run_bash",
+   {
+    "cmd": "python3 pipeline/main.py"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "pipeline/main.py",
+    "content": "#!/usr/bin/env python3\n\"\"\"日度电表读数汇总：读 pipeline/data/in.csv，写 pipeline/out/report.csv。\n\n修复说明（相对交接版）：路径不再按**当前工作目录**解析，而是按本文件自身的\n位置解析，所以从仓库根目录 `python3 pipeline/main.py` 与从 pipeline/ 目录\n`python3 main.py` 都会得到同一份 `pipeline/out/report.csv`；口径不变（仍然\n只调用 metrics.summarize），输入文件只读。\n\"\"\"\nimport csv\nimport os\nimport sys\n\nHERE = os.path.dirname(os.path.abspath(__file__))\nif HERE not in sys.path:\n    sys.path.insert(0, HERE)          # 让 metrics 无论从哪个目录启动都可导入\n\nfrom metrics import summarize          # noqa: E402  汇总口径，禁止改动\n\nINPUT = os.path.join(HERE, \"data\", \"in.csv\")\nOUTPUT = os.path.join(HERE, \"out\", \"report.csv\")\n\n\ndef load(path):\n    with open(path, newline=\"\", encoding=\"utf-8\") as handle:\n        return list(csv.DictReader(handle))\n\n\ndef main():\n    rows = load(INPUT)\n    os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)\n    with open(OUTPUT, \"w\", newline=\"\", encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"region\", \"devices\", \"rows\", \"total_kwh\", \"avg_kwh\"])\n        for aggregate in summarize(rows):\n            writer.writerow(aggregate)\n    print(\"ok read=%d out=%s\" % (len(rows), OUTPUT))\n\n\nif __name__ == \"__main__\":\n    main()\n"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "run.sh",
+    "content": "#!/usr/bin/env bash\n# 复现入口（已修正）：交接稿写的子目录名是错的，工作区里真实的管线目录是\n# pipeline/，读数文件是 pipeline/data/in.csv。\n# main.py 现在以脚本自身位置解析路径，因此不再需要 cd，在仓库根目录直接执行即可。\nset -euo pipefail\n\npython3 pipeline/main.py\n"
+   }
+  ],
+  [
+   "run_bash",
+   {
+    "cmd": "python3 pipeline/main.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "pipeline/out/report.csv"
+   }
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

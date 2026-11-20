@@ -1,0 +1,44 @@
+id: script-dev-005
+title: 多日志版本去重、时区归一与 P95 汇总（V2）
+category: script-dev
+tags: [planning, state-tracking, constraint, generalization]
+difficulty: hard
+environment: {name: shell_ws, snapshot: script-005}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。实现健壮日志汇总脚本并真实运行：日志行形状五花八门（多余字段、
+    缺字段、制表符分隔、消息含空格、时间写法混用、乱序），必须逐行按规范判定合法与否，
+    不得只跑通示例。禁止修改输入，完成后 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  实现 logs.py（仅标准库），读取 app.log 和 app2.log。合法行的格式为（空白分隔，至少 5 个
+  字段，第 5 个之后的内容都属于 message，可含多个词；制表符与空格等价）：
+
+      ISO时间 LEVEL request_id latency_ms message
+
+  * ISO 时间必须带 Z 或 ±HH:MM 偏移，无法解析或没有时区信息的一律跳过；
+  * LEVEL 仅 INFO/WARN/ERROR（大小写敏感，DEBUG/FATAL/TRACE 等跳过）；
+  * latency_ms 必须是非负数字（负数、非数字跳过）；
+  * 跨文件按 request_id 去重，保留时间最晚的一条：按 UTC **时刻**比较（不能按字符串比较）；
+    时刻完全相同时，保留读取顺序中**后出现**的一条（先读 app.log，再读 app2.log）；
+  * 去重之后按该记录的 **UTC 日期**（由时刻换算得到，不是时间戳前 10 个字符）与 level 汇总
+    count 和 p95_latency；p95 用 nearest-rank：升序排列后第 ceil(0.95*n) 个值（n 为该桶条数，
+    不是最大值，也不是插值）；
+  * 输出 out/levels.csv，列严格为 date,level,count,p95_latency，按 date、level 字典序升序；
+    latency 按输入原样输出普通数字（不加小数点、不加千分位）；
+  * 一条记录都不剩时仍要输出只含表头的 levels.csv。
+
+  运行脚本生成结果，禁止修改 app.log、app2.log。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.levels.columns == ['date', 'level', 'count', 'p95_latency']"
+  - type: state_assert
+    expr: "state.csv.levels.rows == [['2025-01-01', 'ERROR', '1', '300'], ['2025-01-01', 'INFO', '1', '80'], ['2025-01-01', 'WARN', '1', '200'], ['2025-01-02', 'ERROR', '2', '400']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0 and 'app.log' not in state.modified and 'app2.log' not in state.modified"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash
+    min_calls: 1

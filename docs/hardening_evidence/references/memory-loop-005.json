@@ -1,0 +1,96 @@
+{
+ "note": "仅凭题面与记忆闭环规范推出的参考闭环：先 memory_search 取回旧记忆（finance:settlement-cutoff：基准日固定取当月最后一天、脚本会自动取数不需要 config/as_of），把它当假设去核验——run_python 跑 etl/settle.py 得到 'ValueError: 缺少 config/as_of' 的实测报错，docs/runbook.md 与 config/holidays.md 又表明基准日是当月最后一个**结算工作日**（周末与登记的非工作日都要排除，2025-06 为 2025-06-27），旧记忆两点都被推翻。纠正走记忆通道而不是改文件：用 etl/derive_as_of.py 按手册口径推导基准日并写入 config/as_of（输入数据只读，处理结果由 etl/settle.py 真实运行产出，未硬编码任何金额），再跑 etl/settle.py 得到 out/settlement.csv；最后原位 memory_update 修正旧条目（version 4→5，记录 reason，不新增冲突条目，write_calls 保持 0），闭环后 done。全程没有对同一条失败命令重复下达。",
+ "author": "qoder",
+ "calls": [
+  [
+   "memory_search",
+   {
+    "query": "月末结算 基准日 截止 结算工作日 settlement as_of",
+    "limit": 5
+   }
+  ],
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "docs/runbook.md"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "config/holidays.md"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "etl/settle.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "data/positions.csv"
+   }
+  ],
+  [
+   "run_python",
+   {
+    "script": "etl/settle.py"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "etl/derive_as_of.py",
+    "content": "\"\"\"按现行运行手册推导 2025-06 的结算基准日，写入 config/as_of。\n\ndocs/runbook.md 第 1 条：结算基准日 = 当月最后一个**结算工作日**。工作日与否的口径由\n两处一起给出：条目要求\"既在当月、又不出现在 config/holidays.md 里的日期\"，而\nconfig/holidays.md 把自己定义为\"结算非工作日\"——周末与列出的调休日都不是结算工作日，\n所以自然月的最后一天（2025-06 落在周末，且月末那个周一也被登记为非工作日）不是基准日。\n\n第 2 条：基准日必须写入 config/as_of；etl/settle.py 缺该文件时直接报错退出，不会自行猜测\n（旧记忆\"脚本会自动取基准日、不需要 config/as_of\"与实测相反，见本次运行第一次报错）。\n\"\"\"\nimport calendar\nimport datetime\nimport os\nimport re\n\nTARGET_MONTH = \"2025-06\"          # 题面指定的结算月份\nHOLIDAYS = \"config/holidays.md\"\nAS_OF = \"config/as_of\"\n\n\ndef non_working_days():\n    with open(HOLIDAYS, encoding=\"utf-8\") as handle:\n        return set(re.findall(r\"(\\d{4}-\\d{2}-\\d{2})\", handle.read()))\n\n\ndef settlement_working_days(month):\n    year, mon = (int(part) for part in month.split(\"-\"))\n    holidays = non_working_days()\n    days = []\n    for day in range(1, calendar.monthrange(year, mon)[1] + 1):\n        date = datetime.date(year, mon, day)\n        if date.weekday() >= 5 or date.isoformat() in holidays:   # 周末与登记的非工作日都排除\n            continue\n        days.append(date.isoformat())\n    return days\n\n\ndef main():\n    year, mon = (int(part) for part in TARGET_MONTH.split(\"-\"))\n    days = settlement_working_days(TARGET_MONTH)\n    assert days, f\"{TARGET_MONTH} 没有结算工作日\"\n    as_of = max(days)\n    os.makedirs(os.path.dirname(AS_OF), exist_ok=True)\n    with open(AS_OF, \"w\", encoding=\"utf-8\") as handle:\n        handle.write(as_of + \"\\n\")\n    with open(AS_OF, encoding=\"utf-8\") as handle:\n        back = handle.read().strip()\n    assert back == as_of, (back, as_of)\n    all_days = {datetime.date(year, mon, day).isoformat()\n                for day in range(1, calendar.monthrange(year, mon)[1] + 1)}\n    print(\"month:\", TARGET_MONTH, \"| settlement working days:\", len(days))\n    print(\"excluded (weekend or config/holidays.md):\", sorted(all_days - set(days)))\n    print(\"last settlement working day ->\", AS_OF, \"=\", back)\n\n\nmain()\n"
+   }
+  ],
+  [
+   "run_python",
+   {
+    "script": "etl/derive_as_of.py"
+   }
+  ],
+  [
+   "run_python",
+   {
+    "script": "etl/settle.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "config/as_of"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/settlement.csv"
+   }
+  ],
+  [
+   "memory_update",
+   {
+    "memory_id": "mem-cutoff",
+    "content": "月末结算基准日 = 当月最后一个结算工作日：周一到周五、且不在 config/holidays.md 里的那一天；自然月最后一天与月末周末都不是基准日（2025-06 的基准日是 2025-06-27）。etl/settle.py 不会自行推断基准日：缺少 config/as_of 时它直接报错退出，必须先按 docs/runbook.md 推导出基准日并写入 config/as_of 再运行。口径：同一 trade_id 取 as_of_seq 最大的修订、status=cancelled 先剔除、只计 booked_date 不晚于基准日的记录，产出 out/settlement.csv 列 booked_date,net_amount,trade_count。",
+    "reason": "旧记忆被实测推翻：本次运行 etl/settle.py 在缺少 config/as_of 时以 'ValueError: 缺少 config/as_of' 退出，并未自动取基准日；docs/runbook.md 第 1/2 条规定基准日是当月最后一个结算工作日（周末与 config/holidays.md 登记的非工作日都要排除），2025-06 推导为 2025-06-27，月末那几个自然日都不是结算工作日。",
+    "tags": [
+     "finance",
+     "settlement",
+     "cutoff",
+     "as_of"
+    ]
+   }
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

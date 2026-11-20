@@ -1,0 +1,50 @@
+id: locate-bug-008
+title: 结案复盘文档的准入数字与当前语义冲突：定位取整边界并回填真实放行条数
+category: locate
+tags: [planning, state-tracking]
+difficulty: hard
+environment: {name: code_repo, snapshot: locate-008}
+agent:
+  system_prompt: |
+    你是资深流量治理工程师。定位类任务禁止修改任何文件：先运行完整测试复现现象，再用 grep
+    与阅读把“文档口径”和“当前代码口径”分开，最后用 answer 提交结构化结论并 done。
+    结论里的数字必须来自本次实际执行得到的观测，禁止照抄仓库文档中已有的数字。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  docs/incident-2025-11.md 已于 2025-11-18 结案，其表 2 记录了本次复盘场景
+  （SCENARIO_SEED=20251107 重放的 100 条请求）的准入结果，并被 tests/test_replay_baseline.py
+  照抄为回归护栏；现在 CI 正在报这个护栏。文档与测试可能有一方在说谎，也可能两方的口径
+  都已经过期，不要凭任何一方自述下结论。
+
+  请只用执行与检索来判定：必须先 run_tests 复现（护栏给出的实测数字是当前代码的真实行为），
+  再用 grep 沿准入路径追各改动单号，确认哪个定义点上的语义与文档结论段不一致；
+  干扰项（加权、连续回填、epoch 整除、指标标签）都要用检索排除。禁止 edit_file，禁止改测试。
+
+  用 answer 提交单行 JSON，且只能包含 file、symbol、cause、true_value 四个键：
+  - file、symbol：当前实现该语义、且使文档结论失效的首个定义点（给出该口径的函数）；
+  - cause 从以下代码中选一个：ceil-base-quota、floor-base-quota、unweighted-favored-tenant、
+    integer-second-refill、epoch-floor-division；
+  - true_value：当前代码在本次复盘场景 100 条请求里实际放行的条数，必须是 JSON 整数
+    （不加引号；不是放行率，也不是文档或基线常量里的数字）。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'file': 'ratelimit/allocator.py', 'symbol': 'fair_share', 'cause': 'ceil-base-quota', 'true_value': 58}"
+  - type: state_assert
+    expr: "state.test_runs >= 1 and state.grep_calls >= 1"
+  - type: state_assert
+    expr: "len(state.files_read) >= 3"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: grep
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

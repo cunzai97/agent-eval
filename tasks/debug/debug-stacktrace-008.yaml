@@ -1,0 +1,37 @@
+id: debug-stacktrace-008
+title: 修复后台记忆 Review 抢占与重试放大的循环
+category: debug
+tags: [planning, recovery, state-tracking, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-008}
+agent:
+  system_prompt: |
+    你是 Agent 运行时工程师。先运行测试复现，沿调度与传输恢复链修复根因；禁止修改 tests/，完成后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  单 slot 本地模型在前台回答结束后会运行记忆 review。用户很快发送下一轮时，日志表现为后台思考
+  被打断、同一工作从头开始并反复循环。修复 review/ 中的状态机：
+
+  - foreground 永远优先于尚未开始的 review；新 foreground 到达时，应使正在运行的 review 失效，
+    同 conversation 的旧 review 不再执行，其他 conversation 的 review 只能保留一份并在空闲后恢复；
+  - 已失效工作产生的迟到完成或迟到错误不得改变当前 active、完成历史或创建 retry；正在运行的
+    foreground 不能被另一 foreground 抢占；
+  - 一个 foreground source 最多触发一个 review，review 自身不能递归触发 review；
+  - transport 与 scheduler 之间只能有一个 retry owner。重试保持 operation_id，attempt 表示总尝试
+    次数，不能重复排队、突破 max_attempts 或把同一 operation 记录完成两次。
+
+  保持公开接口和单 active 约束，不要通过延长超时掩盖并发错误，不得修改测试。
+budget: {max_steps: 44, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  - type: state_assert
+    expr: "state.hidden_tests.passed == state.hidden_tests.total and state.hidden_tests.total >= 5"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['review/scheduler.py', 'review/transport.py'])"
+  - type: tool_used
+    name: run_tests
+  - type: order_of
+    tools: [edit_file, run_tests]

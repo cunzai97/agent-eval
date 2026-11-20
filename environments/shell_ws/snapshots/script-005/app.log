@@ -1,0 +1,5 @@
+2025-01-01T10:00:00Z ERROR r1 100 initial failure
+2025-01-01T10:05:00Z INFO r1 80 recovered
+2025-01-01T11:00:00Z WARN r2 200 slow
+2025-01-01T12:00:00+00:00 ERROR r3 300 timeout
+malformed line

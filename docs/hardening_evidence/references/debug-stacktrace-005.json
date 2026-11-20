@@ -1,0 +1,21 @@
+{
+ "note": "仅凭题面推出的参考修复，按题面的四条口径各自落到自己的层：1) funcs/state.py 里那个模块级 COUNTS 换成 CallCounter 类——一个工厂实例一份计数，字典按 handler 名索引（限额因此既按 handler 又按 factory 隔离，两个工厂用同名 handler 也互不影响），超过 limit 时抛 RuntimeError 且**不回滚计数**，超限之后仍然超限；2) funcs/make.py 每次调用新建一个 CallCounter，并把 name/limit/offset 三个**值**用默认参数绑进闭包（读循环变量 spec 的晚绑定与“抓住 dict 本身”都不算捕获自己的配置：调用方之后改 dict，handler 的行为必须不变），构造循环里逐条校验 limit<=0 与重名各抛 ValueError，因此校验扫的是整个 specs 列表而不是第一条，也不写回调用方的 dict。可见 8 条全绿（8 passed），18 条隐藏用例全绿；两份文件都在 files_changed 里，未修改 tests/。期望值全部在 agent-eval-pytest:3.12 里实测：34 份历史修复终态（含本次放松 run_tests>=2 后被放行的 2 份）在这 18 条上与参考实现逐条一致。故意不钉的东西：funcs/state.py 的对外形状（判对人群把它改成了类/闭包工厂/传字典等 8 种写法）、非数值 limit 的异常类型（人群在 None 上分裂为 TypeError 与 ValueError）、报错文案。",
+ "author": "qoder-subagent",
+ "calls": [
+  ["list_files", {}],
+  ["read_file", {"path": "funcs/state.py"}],
+  ["read_file", {"path": "funcs/make.py"}],
+  ["read_file", {"path": "tests/test_make.py"}],
+  ["run_tests", {}],
+  ["grep", {"pattern": "COUNTS"}],
+  ["grep", {"pattern": "def process"}],
+  ["edit_file", {"path": "funcs/state.py",
+                 "old_text": "COUNTS = {}\n\n\ndef consume(name, limit):\n    COUNTS[name] = COUNTS.get(name, 0) + 1\n    if COUNTS[name] > limit:\n        raise RuntimeError(\"call limit exceeded\")",
+                 "new_text": "class CallCounter:\n    \"\"\"Per-factory call accounting.\n\n    The old module-level COUNTS was shared by every factory, so a second factory\n    inherited (and could exhaust) another factory's budget.  One instance per\n    factory, keyed by handler name, keeps limits per handler *and* per factory.\n    \"\"\"\n\n    def __init__(self):\n        self._counts = {}\n\n    def consume(self, name, limit):\n        count = self._counts.get(name, 0) + 1\n        self._counts[name] = count\n        if count > limit:\n            raise RuntimeError(\"call limit exceeded\")"}],
+  ["edit_file", {"path": "funcs/make.py",
+                 "old_text": "from .state import consume\n\n\ndef make_processors(specs):\n    processors = {}\n    for spec in specs:\n        name = spec[\"name\"]\n\n        def process(value):\n            consume(name, spec[\"limit\"])\n            return value + spec[\"offset\"]\n\n        processors[name] = process\n    return processors",
+                 "new_text": "from .state import CallCounter\n\n\ndef make_processors(specs):\n    processors = {}\n    counter = CallCounter()          # a fresh factory call is fresh state\n\n    for spec in specs:\n        name = spec[\"name\"]\n        limit = spec[\"limit\"]\n        offset = spec[\"offset\"]\n\n        if limit <= 0:\n            raise ValueError(f\"limit must be positive, got {limit!r}\")\n        if name in processors:\n            raise ValueError(f\"duplicate handler name: {name!r}\")\n\n        # Bind the values, not the loop variable and not the caller's dict, so\n        # each handler keeps the configuration it was built with.\n        def process(value, _name=name, _limit=limit, _offset=offset, _counter=counter):\n            _counter.consume(_name, _limit)\n            return value + _offset\n\n        processors[name] = process\n    return processors"}],
+  ["run_tests", {}],
+  ["done", {}]
+ ]
+}

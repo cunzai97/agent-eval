@@ -1,0 +1,29 @@
+id: fix-failing-test-003
+title: 修复 Unicode 规范化与稳定 slug 契约（V2）
+category: fix-and-test
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-003}
+agent:
+  system_prompt: |
+    先运行测试复现，修复源码；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  slug 需要 Unicode NFKD/casefold、去除组合音标、保留字母数字语义、合并分隔符；撇号应直接删除。
+  max_length 不能留下半个尾部单词或连字符；空结果与非字符串应拒绝。规范化和 slug 层均可能有问题。
+  拒绝非字符串与空结果是**规范化层自身**的职责：它被单独调用时也必须拒绝，不能只在 slug 入口
+  挡一道、把规范化层建立在"调用方应该会传对"之上。
+budget: {max_steps: 34, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  # 可见 8 条只喂了 Latin 词形 + 一个截断采样点：分隔符全集、撇号字形、切在整词边界
+  # 上的长度、非 None 的非字符串、规范化层自身是否干活，它一概看不见。
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 317 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'text/normalize.py' in state.files_changed and 'text/slug.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

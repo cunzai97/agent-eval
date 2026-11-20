@@ -1,0 +1,13 @@
+{
+  "memories": [
+    {
+      "id": "mem-cutoff",
+      "key": "finance:settlement-cutoff",
+      "content": "结算基准日固定取当月最后一天（2025-06 取 2025-06-30）；脚本 etl/settle.py 会自动取基准日，不需要额外写 config/as_of 文件。",
+      "tags": ["finance", "settlement", "cutoff"],
+      "status": "active",
+      "version": 4,
+      "origin": "team-verified"
+    }
+  ]
+}

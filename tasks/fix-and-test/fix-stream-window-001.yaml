@@ -1,0 +1,38 @@
+id: fix-stream-window-001
+title: 修复乱序事件去重、窗口边界与聚合链路
+category: fix-and-test
+tags: [planning, state-tracking, generalization, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: stream_windows}
+agent:
+  system_prompt: |
+    你是流处理工程师。先运行测试复现，沿 normalize → windows → aggregate 调用链修复根因；
+    保持公开接口，禁止修改 tests/，改完复跑测试后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  修复 streamflow/ 的三个模块，只用标准库，不得按样例硬编码。
+
+  1. normalize_events(records)：每条记录是含 id、ts、user、value 的 Mapping，额外字段忽略。
+     id/user 必须是 strip 后非空的字符串，返回时保存 strip 后的值；ts 必须是非负 int（bool 不算）；
+     value 必须是有限 int/float（bool 不算），返回 float。缺字段或非法值抛 ValueError。
+     同一 id 重复时由原始输入中最后一条完整替换；最终按 (ts, id) 升序，不得修改或引用输入记录。
+  2. window_events(events, size)：size 为正 int（bool 不算），否则 ValueError。事件按
+     start=(ts//size)*size 分到固定窗口，end=start+size 是排他端点；只返回非空窗口，窗口按 start
+     升序，窗内事件按 (ts, id) 升序。返回结构为 {start,end,events}，events 是输入事件的副本。
+  3. summarize(records, size)：必须复用上述两个公开函数，返回每个非空窗口的
+     {start,end,count,total,users,mean}；count 为去重后事件数，total 为窗内 value 之和，
+     users 为不同 user 数，mean=total/count。空输入返回 []，不生成中间空窗口。
+
+  直接调用三个公开函数的边界行为也属于契约。保持函数签名，禁止修改测试。
+budget: {max_steps: 40, max_tokens: 64000, timeout_s: 720}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 10"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 25 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['streamflow/normalize.py', 'streamflow/windows.py', 'streamflow/aggregate.py'])"
+  - type: order_of
+    tools: [edit_file, run_tests]

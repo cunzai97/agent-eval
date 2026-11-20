@@ -1,0 +1,15 @@
+2025-09-17T19:02:08Z INFO  breadth.naive   symbol=CAPX bars=330 flag=True
+2025-09-17T19:02:08Z INFO  breadth.naive   symbol=GLNX bars=330 flag=True
+2025-09-17T19:02:08Z INFO  breadth.naive   symbol=HDIX bars=330 flag=True
+2025-09-17T19:02:08Z INFO  breadth.naive   symbol=NEWX bars=251 flag=True
+2025-09-17T19:02:08Z INFO  breadth.naive   symbol=MEDX bars=330 flag=False
+2025-09-17T19:02:08Z INFO  breadth.naive   scan_all done hits=4 unknown=1
+2025-09-17T19:02:09Z DEBUG breadth.fastscan symbol=CAPX bars_fed=80 flag=None
+2025-09-17T19:02:09Z DEBUG breadth.fastscan symbol=GLNX bars_fed=80 flag=None
+2025-09-17T19:02:09Z DEBUG breadth.fastscan symbol=NEWX bars_fed=80 flag=None
+2025-09-17T19:02:09Z INFO  breadth.fastscan scan_all done hits=0
+2025-09-17T19:02:09Z ERROR breadth.publish blocked: slow hits=4 fast hits=0 -> invariant slow==fast 失败，拒绝出数
+2025-09-18T19:01:02Z INFO  breadth.naive   scan_all done hits=4 unknown=1
+2025-09-18T19:01:02Z DEBUG breadth.fastscan bars_fed=80 hits=0
+2025-09-18T19:01:02Z ERROR breadth.publish blocked: slow hits=4 fast hits=0 -> invariant slow==fast 失败，拒绝出数
+2025-09-18T19:01:02Z WARN  oncall 备注：连续两日被闸门拦下。口径见 README，两处偏差。

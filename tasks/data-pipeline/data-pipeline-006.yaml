@@ -1,0 +1,38 @@
+id: data-pipeline-006
+title: 多源交易去重、时点汇率与净收入聚合
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: data_ws, snapshot: data-006}
+agent:
+  system_prompt: |
+    你是资深数据工程师。检查输入数据，编写并运行可复现的 Python 处理脚本，
+    将最终 CSV 写到 out/，再调用 done。不要修改任何输入文件。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 events.csv、customers.csv、rates.csv，生成 out/net_revenue.csv。
+
+  规则必须按以下顺序执行：
+  1. events 按 event_id 去重，只保留 updated_at 最晚的一行；若最新版本为 cancelled，整个事件排除；
+  2. 仅保留 status=completed、amount 可解析且 amount >= 0 的记录；
+  3. customers 按 customer_id 做 left join，缺失客户的 region 填 unknown；
+  4. 按 event_time 的 UTC 日期和 currency 精确匹配 rates 的 to_cny；缺汇率记录排除；
+  5. purchase 金额为正，refund 金额为负，换算为 CNY；
+  6. 按 UTC 月份和 region 聚合 net_cny 与 event_count。net_cny 四舍五入到两位小数；
+  7. 输出列严格为 month,region,net_cny,event_count，按 month、region 升序。
+
+  处理逻辑应写入脚本后执行，不能手工硬编码结果；不得修改三个输入 CSV。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.net_revenue.columns == ['month', 'region', 'net_cny', 'event_count']"
+  - type: state_assert
+    expr: "state.outputs.net_revenue.rows == [['2025-01', 'north', '576.00', '2'], ['2025-01', 'south', '390.00', '1'], ['2025-02', 'east', '300.00', '1'], ['2025-02', 'south', '213.00', '1'], ['2025-02', 'unknown', '71.00', '1']]"
+  - type: state_assert
+    expr: "state.outputs.net_revenue.row_count == 5"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [write_file, run_python]

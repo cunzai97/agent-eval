@@ -1,0 +1,30 @@
+id: fix-cap-001
+title: 修复回复截断投递器（全 kind 误伤 + 多字节边界 + 静默无信号）
+category: fix-and-test
+tags: [planning, recovery, observability]
+difficulty: hard
+environment: {name: code_repo, snapshot: capproxy}
+agent:
+  system_prompt: |
+    你是资深工程师。proxy/deliver.py 的 deliver(reply, kind, hard_limit) 有 bug：
+    所有 kind 的回复一律被 hard_limit 截断、多字节字符边界会崩、截断后没有任何可观测信号。
+    先读 spec.md 弄清正确契约，再修复 deliver。禁止改 tests/。全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  proxy/deliver.py 目前是坏的：长回复不管什么 kind 都被 hard_limit 截掉，中文这类多字节
+  字符在边界上直接崩，而且截断后 truncated 永远是 False、reason 永远是 None，调用方根本
+  不知道回复被砍了。按 spec.md 的正确契约修好它——哪些 kind 该截、哪些不该截、hard_limit
+  缺省时的行为、字节边界怎么切，都在 spec 里，别想当然。只改 proxy/deliver.py，不要动
+  tests/ 与 spec.md，全绿后 done。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "any(str(p).startswith('proxy/') for p in state.files_changed)"
+  - type: tool_used
+    name: run_tests

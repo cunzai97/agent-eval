@@ -1,0 +1,20 @@
+{
+ "note": "仅凭题面推出的参考定位：wrapped_delta 直接 abs(left - right)，把已环绕到 [-180,180) 的经度当线性轴求差，179° 与 -179° 实差 2° 却算成 358°，是首个破坏球面经度语义的定义点；longitude_distance 先正确归一化再原样把该错误距离返回给 dist→nearest，自身不引入错误，故为题面要求的近邻诱饵。nearest（入口排序）与 normalize_longitude（被调用且实现正确）已由题面排除。不依赖任何模型，不修改任何文件。",
+ "author": "qoder",
+ "calls": [
+  ["list_files", {}],
+  ["run_tests", {}],
+  ["read_file", {"path": "tests/test_nearest.py"}],
+  ["read_file", {"path": "geo/nearest.py"}],
+  ["grep", {"pattern": "def dist"}],
+  ["read_file", {"path": "geo/dist.py"}],
+  ["grep", {"pattern": "wrapped_delta"}],
+  ["read_file", {"path": "geo/longitude.py"}],
+  ["grep", {"pattern": "def wrapped_delta"}],
+  ["read_file", {"path": "geo/normalize.py"}],
+  ["grep", {"pattern": "normalize_longitude("}],
+  ["run_tests", {}],
+  ["answer", {"value": "{\"file\": \"geo/longitude.py\", \"symbol\": \"wrapped_delta\", \"cause\": \"uses-linear-longitude-delta\", \"decoy\": \"longitude_distance\"}"}],
+  ["done", {}]
+ ]
+}

@@ -1,0 +1,69 @@
+id: liberty-extract-001
+title: 解析 67MB 标准单元 Liberty 库并提取时序结构
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: large_file_ws, snapshot: liberty-extract}
+agent:
+  system_prompt: |
+    你是熟悉 EDA/Liberty 的资深数据工程师。实现通用、只读的 Liberty 提取器并真实运行；不得修改源 .lib，完成后 done。
+  tools: [list_files, read_file, source_info, source_head, source_search, source_read_range, write_file, run_python, done]
+task_prompt: |
+  项目内源文件（只读）：
+    assets/liberty/sc9_cmos28lp_base_hvt_tt_nominal_max_1p10v_25c.lib
+
+  先调用 source_info 识别文件规模，再用 source_head/source_search/source_read_range 做有界结构探查。
+  禁止尝试全文预览；范围读取单次不得超过环境上限，脚本 stdout 只打印简短摘要。
+
+  实现 extract_lib.py，通过 `--lib`、`--cells`（逗号分隔）、`--out-dir` 参数运行。不能用简单的
+  “遇到下一个 cell 就截断”假设；应正确跟踪花括号层级、字符串和多行 values，避免把嵌套
+  pin/timing block 误当成 cell 级属性。
+
+  生成：
+  1. out/library.csv，列 metric,value，依次写 library、time_unit、nom_voltage、nom_temperature、
+     cell_count、timing_group_count；计数覆盖整个库；
+  2. out/cells.csv，列 cell,area,input_pin_count,output_pin_count,timing_group_count,
+     cell_rise_table_count,max_cell_rise。只输出指定 cell，按 cell 名升序；
+  3. max_cell_rise 必须遍历该 cell 所有 cell_rise block 的多行 values 数值，固定六位小数。
+
+  运行时 `--lib` 使用 source_info 返回的已解析绝对路径：
+    python3 extract_lib.py --lib '<source_info.path>' --cells INV_X1M_A9TH,NAND2_X1M_A9TH,DFFQ_X1M_A9TH --out-dir out
+
+  禁止修改、复制、切片或重写源 PDK 文件；工作区生成文件总量不得超过 1MB，结果和脚本留在工作区。
+# 36 步 / 64k token 与 900s 在本地 27B 上不自洽：实跑（qwen3.8-27b@1235）15 步就把 900s
+# 花光，token 只用了 37,127/64,000——绑定约束是墙钟，不是能力预算。这题每一步都要在 66MB
+# 源文件上流式检索，且长上下文下解码从 ~70 tok/s 掉到 ~17.8 tok/s。此题历史 0 条尝试，
+# 放宽 timeout 不移动任何已考过模型的 goalpost，只是让"跑不完"不再被记成"不会做"。
+# 第二次实跑（1800s 下）反过来证明真门槛是 token：qwen3.8 用 12 步 / 72,887 计数 token
+# 撞上 max_tokens，而这 12 步全花在拿 source_read_range 手工读 250 行窗口，一次 run_python
+# 都没发。参考解的形状是 1 次 write_file + 1 次 run_python + 若干检索（共 12 次调用），
+# 所以 64k 够一次"写脚本流式处理"的正解——这题考的是会不会换成脚本，不是预算够不够，
+# 因此只调 timeout，不再调 max_tokens。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 1800}
+success:
+  - type: state_assert
+    expr: "state.csv.library.columns == ['metric', 'value'] and state.csv.library.rows == [['library', 'sc9_cmos28lp_base_hvt_tt_nominal_max_1p10v_25c'], ['time_unit', '1ns'], ['nom_voltage', '1.1'], ['nom_temperature', '25'], ['cell_count', '1039'], ['timing_group_count', '13760']]"
+  - type: state_assert
+    expr: "state.csv.cells.columns == ['cell', 'area', 'input_pin_count', 'output_pin_count', 'timing_group_count', 'cell_rise_table_count', 'max_cell_rise']"
+  - type: state_assert
+    expr: "state.csv.cells.rows == [['DFFQ_X1M_A9TH', '2.106', '2', '1', '5', '1', '0.383407'], ['INV_X1M_A9TH', '0.351', '1', '1', '1', '1', '0.411510'], ['NAND2_X1M_A9TH', '0.468', '2', '1', '2', '2', '0.412152']]"
+  - type: state_assert
+    expr: "'extract_lib.py' in state.files and len(state.modified) == 0"
+  - type: state_assert
+    expr: "state.source_unchanged and state.inspection.oversized_requests == 0"
+  - type: state_assert
+    expr: "state.inspection.info_calls >= 1 and state.inspection.search_calls >= 3 and state.inspection.range_calls >= 1"
+  - type: state_assert
+    expr: "state.inspection.preview_bytes <= 160000 and state.inspection.runner_stdout_bytes <= 20000"
+  - type: state_assert
+    expr: "state.inspection.generated_bytes <= state.inspection.max_generated_bytes"
+  - type: tool_used
+    name: source_info
+  - type: tool_used
+    name: source_search
+  - type: tool_used
+    name: source_read_range
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [source_info, source_search, source_read_range, write_file, run_python]

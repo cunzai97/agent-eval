@@ -1,0 +1,27 @@
+id: fix-failing-test-005
+title: 修复非变异深合并与三层配置优先级（V2）
+category: fix-and-test
+tags: [planning, recovery, state-tracking, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-005}
+agent:
+  system_prompt: |
+    先运行测试复现，修复源码；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  实现非变异深合并：dict 递归合并，其他类型（含 list/None）由 override 整体替换，结果不能与输入共享
+  可变子对象。resolve 优先级必须是 defaults < file_config < env_config。两个模块都可能有缺陷。
+budget: {max_steps: 36, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'cfg/merge.py' in state.files_changed and 'cfg/resolve.py' in state.files_changed"
+  # 可见 9 条只喂了两层深、两侧都非空的形状，且 aliasing 探针只写 base 侧拿到的 list；
+  # 递归深度、override 侧引用外泄、falsy-but-not-None 覆盖这三类错法它一概看不见。
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 128 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_tests

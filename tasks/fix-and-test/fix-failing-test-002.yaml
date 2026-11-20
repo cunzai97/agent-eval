@@ -1,0 +1,26 @@
+id: fix-failing-test-002
+title: 修复多币种最小单位与十进制舍入（V2）
+category: fix-and-test
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-002}
+agent:
+  system_prompt: |
+    先运行测试复现，修复源码；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  money/ 必须把金额转换为不同币种的最小单位：USD 2 位、JPY 0 位、KWD 3 位，统一使用
+  十进制 ROUND_HALF_UP。支持千分位、$、会计负数，拒绝非法值和未知币种，不能经过 binary float。
+  相关规则和转换实现都可能有缺陷，保持公开函数签名。
+budget: {max_steps: 34, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 9 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'money/rules.py' in state.files_changed and 'money/convert.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

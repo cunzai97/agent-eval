@@ -1,0 +1,600 @@
+{"id": "m0", "role": "user", "content": "context cold compaction loop prompt context", "ts": 1700000000}
+{"id": "m1", "role": "assistant", "content": "trace model cold token replay cold", "ts": 1700000001}
+{"id": "m2", "role": "tool", "content": "the kv kv loop guard model", "ts": 1700000002}
+{"id": "m3", "role": "system", "content": "scaffold warm trace cache step", "ts": 1700000003}
+{"id": "m4", "role": "user", "content": "scaffold context cold verify context", "ts": 1700000004}
+{"id": "m5", "role": "assistant", "content": "step kv trace loop model cold", "ts": 1700000005}
+{"id": "m6", "role": "tool", "content": "loop context warm verify prompt", "ts": 1700000006}
+{"id": "m7", "role": "system", "content": "context warm model draft the evict", "ts": 1700000007}
+{"id": "m8", "role": "user", "content": "model scaffold trace replay verify", "ts": 1700000008}
+{"id": "m9", "role": "assistant", "content": "replay verify reasoning prefix", "ts": 1700000009}
+{"id": "m10", "role": "tool", "content": "verify step the step context", "ts": 1700000010}
+{"id": "m11", "role": "system", "content": "step evict trace model", "ts": 1700000011}
+{"id": "m12", "role": "user", "content": "evict prompt guard the window loop", "ts": 1700000012}
+{"id": "m13", "role": "assistant", "content": "prefix prefix scaffold loop step the", "ts": 1700000013}
+{"id": "m14", "role": "tool", "content": "context guard reasoning step", "ts": 1700000014}
+{"id": "m15", "role": "system", "content": "replay trace compaction draft", "ts": 1700000015}
+{"id": "m16", "role": "user", "content": "token evict cache prompt scaffold", "ts": 1700000016}
+{"id": "m17", "role": "assistant", "content": "guard guard token evict context token", "ts": 1700000017}
+{"id": "m18", "role": "tool", "content": "scaffold the model model token", "ts": 1700000018}
+{"id": "m19", "role": "system", "content": "scaffold replay compaction cache evict", "ts": 1700000019}
+{"id": "m20", "role": "user", "content": "warm window loop the step cache", "ts": 1700000020}
+{"id": "m21", "role": "assistant", "content": "trace draft compaction evict", "ts": 1700000021}
+{"id": "m22", "role": "tool", "content": "cold draft cold context step reasoning", "ts": 1700000022}
+{"id": "m23", "role": "system", "content": "kv step replay prefix step reasoning", "ts": 1700000023}
+{"id": "m24", "role": "user", "content": "guard the compaction token", "ts": 1700000024}
+{"id": "m25", "role": "assistant", "content": "scaffold cold reasoning warm prefix", "ts": 1700000025}
+{"id": "m26", "role": "tool", "content": "cache cold cold token model", "ts": 1700000026}
+{"id": "m27", "role": "system", "content": "replay warm the warm", "ts": 1700000027}
+{"id": "m28", "role": "user", "content": "model prompt cold trace guard context", "ts": 1700000028}
+{"id": "m29", "role": "assistant", "content": "step reasoning window compaction token", "ts": 1700000029}
+{"id": "m30", "role": "tool", "content": "scaffold step cold kv loop the", "ts": 1700000030}
+{"id": "m31", "role": "system", "content": "window reasoning prompt prefix compaction evict", "ts": 1700000031}
+{"id": "m32", "role": "user", "content": "reasoning trace the reasoning loop", "ts": 1700000032}
+{"id": "m33", "role": "assistant", "content": "window cache cold compaction draft", "ts": 1700000033}
+{"id": "m34", "role": "tool", "content": "verify model scaffold guard kv token", "ts": 1700000034}
+{"id": "m35", "role": "system", "content": "token prefix token prefix", "ts": 1700000035}
+{"id": "m36", "role": "user", "content": "cold the model prompt", "ts": 1700000036}
+{"id": "m37", "role": "assistant", "content": "trace context replay evict", "ts": 1700000037}
+{"id": "m38", "role": "tool", "content": "kv cold guard model", "ts": 1700000038}
+{"id": "m39", "role": "system", "content": "replay loop replay step context", "ts": 1700000039}
+{"id": "m40", "role": "user", "content": "compaction context guard draft verify token", "ts": 1700000040}
+{"id": "m41", "role": "assistant", "content": "cold replay reasoning context", "ts": 1700000041}
+{"id": "m42", "role": "tool", "content": "context reasoning replay step", "ts": 1700000042}
+{"id": "m43", "role": "system", "content": "compaction evict the guard", "ts": 1700000043}
+{"id": "m44", "role": "user", "content": "cold model window cold reasoning", "ts": 1700000044}
+{"id": "m45", "role": "assistant", "content": "warm cache scaffold compaction", "ts": 1700000045}
+{"id": "m46", "role": "tool", "content": "verify guard context draft draft", "ts": 1700000046}
+{"id": "m47", "role": "system", "content": "kv cold cache draft", "ts": 1700000047}
+{"id": "m48", "role": "user", "content": "reasoning reasoning the context reasoning", "ts": 1700000048}
+{"id": "m49", "role": "assistant", "content": "guard reasoning prefix loop", "ts": 1700000049}
+{"id": "m50", "role": "tool", "content": "loop reasoning compaction cache the kv", "ts": 1700000050}
+{"id": "m51", "role": "system", "content": "prompt token scaffold step loop", "ts": 1700000051}
+{"id": "m52", "role": "user", "content": "guard token step prefix", "ts": 1700000052}
+{"id": "m53", "role": "assistant", "content": "compaction compaction trace evict draft kv", "ts": 1700000053}
+{"id": "m54", "role": "tool", "content": "kv trace evict trace prefix", "ts": 1700000054}
+{"id": "m55", "role": "system", "content": "replay model scaffold guard prefix cold", "ts": 1700000055}
+{"id": "m56", "role": "user", "content": "evict draft model token compaction kv", "ts": 1700000056}
+{"id": "m57", "role": "assistant", "content": "cold cache verify scaffold draft draft", "ts": 1700000057}
+{"id": "m58", "role": "tool", "content": "scaffold verify loop cache step compaction", "ts": 1700000058}
+{"id": "m59", "role": "system", "content": "context token guard cache model", "ts": 1700000059}
+{"id": "m60", "role": "user", "content": "loop step loop the", "ts": 1700000060}
+{"id": "m61", "role": "assistant", "content": "model prefix cache step", "ts": 1700000061}
+{"id": "m62", "role": "tool", "content": "model prompt evict evict kv draft", "ts": 1700000062}
+{"id": "m63", "role": "system", "content": "guard cache trace loop draft verify", "ts": 1700000063}
+{"id": "m64", "role": "user", "content": "verify warm cold the", "ts": 1700000064}
+{"id": "m65", "role": "assistant", "content": "verify prompt token context verify loop", "ts": 1700000065}
+{"id": "m66", "role": "tool", "content": "context reasoning prefix replay", "ts": 1700000066}
+{"id": "m67", "role": "system", "content": "compaction kv replay trace", "ts": 1700000067}
+{"id": "m68", "role": "user", "content": "guard token draft draft warm", "ts": 1700000068}
+{"id": "m69", "role": "assistant", "content": "draft verify cold loop", "ts": 1700000069}
+{"id": "m70", "role": "tool", "content": "evict step token reasoning trace evict", "ts": 1700000070}
+{"id": "m71", "role": "system", "content": "trace context replay scaffold", "ts": 1700000071}
+{"id": "m72", "role": "user", "content": "cache kv window trace", "ts": 1700000072}
+{"id": "m73", "role": "assistant", "content": "prompt evict draft draft", "ts": 1700000073}
+{"id": "m74", "role": "tool", "content": "prompt kv model trace", "ts": 1700000074}
+{"id": "m75", "role": "system", "content": "model cache compaction replay verify prompt", "ts": 1700000075}
+{"id": "m76", "role": "user", "content": "scaffold warm window prompt", "ts": 1700000076}
+{"id": "m77", "role": "assistant", "content": "evict draft cache cache evict cache", "ts": 1700000077}
+{"id": "m78", "role": "tool", "content": "replay token replay reasoning the evict", "ts": 1700000078}
+{"id": "m79", "role": "system", "content": "evict scaffold verify cold the reasoning", "ts": 1700000079}
+{"id": "m80", "role": "user", "content": "replay guard context cold verify compaction", "ts": 1700000080}
+{"id": "m81", "role": "assistant", "content": "loop prompt scaffold reasoning", "ts": 1700000081}
+{"id": "m82", "role": "tool", "content": "scaffold kv guard guard", "ts": 1700000082}
+{"id": "m83", "role": "system", "content": "token scaffold verify window", "ts": 1700000083}
+{"id": "m84", "role": "user", "content": "the reasoning the loop draft", "ts": 1700000084}
+{"id": "m85", "role": "assistant", "content": "step model step kv context", "ts": 1700000085}
+{"id": "m86", "role": "tool", "content": "reasoning trace the the", "ts": 1700000086}
+{"id": "m87", "role": "system", "content": "context step evict kv step", "ts": 1700000087}
+{"id": "m88", "role": "user", "content": "replay loop context scaffold warm", "ts": 1700000088}
+{"id": "m89", "role": "assistant", "content": "window kv draft context", "ts": 1700000089}
+{"id": "m90", "role": "tool", "content": "warm warm context compaction", "ts": 1700000090}
+{"id": "m91", "role": "system", "content": "the trace warm step guard", "ts": 1700000091}
+{"id": "m92", "role": "user", "content": "cold verify guard model prefix the", "ts": 1700000092}
+{"id": "m93", "role": "assistant", "content": "verify scaffold reasoning step", "ts": 1700000093}
+{"id": "m94", "role": "tool", "content": "window scaffold kv compaction", "ts": 1700000094}
+{"id": "m95", "role": "system", "content": "cache step loop the replay trace", "ts": 1700000095}
+{"id": "m96", "role": "user", "content": "verify token trace replay guard", "ts": 1700000096}
+{"id": "m97", "role": "assistant", "content": "scaffold model replay reasoning", "ts": 1700000097}
+{"id": "m98", "role": "tool", "content": "replay step guard verify cold warm", "ts": 1700000098}
+{"id": "m99", "role": "system", "content": "loop trace reasoning reasoning", "ts": 1700000099}
+{"id": "m100", "role": "user", "content": "reasoning replay context compaction", "ts": 1700000100}
+{"id": "m101", "role": "assistant", "content": "model trace cache cache cold prompt", "ts": 1700000101}
+{"id": "m102", "role": "tool", "content": "window context kv evict", "ts": 1700000102}
+{"id": "m103", "role": "system", "content": "replay cache model reasoning reasoning", "ts": 1700000103}
+{"id": "m104", "role": "user", "content": "step loop kv context compaction cache", "ts": 1700000104}
+{"id": "m105", "role": "assistant", "content": "compaction prefix kv the loop loop", "ts": 1700000105}
+{"id": "m106", "role": "tool", "content": "cache guard evict evict the cache", "ts": 1700000106}
+{"id": "m107", "role": "system", "content": "replay prefix prompt prefix", "ts": 1700000107}
+{"id": "m108", "role": "user", "content": "context guard prefix window", "ts": 1700000108}
+{"id": "m109", "role": "assistant", "content": "scaffold verify replay trace step draft", "ts": 1700000109}
+{"id": "m110", "role": "tool", "content": "cold model kv model cold", "ts": 1700000110}
+{"id": "m111", "role": "system", "content": "step reasoning model warm guard", "ts": 1700000111}
+{"id": "m112", "role": "user", "content": "evict replay window step", "ts": 1700000112}
+{"id": "m113", "role": "assistant", "content": "scaffold step draft context", "ts": 1700000113}
+{"id": "m114", "role": "tool", "content": "trace replay evict the model", "ts": 1700000114}
+{"id": "m115", "role": "system", "content": "replay compaction step replay", "ts": 1700000115}
+{"id": "m116", "role": "user", "content": "the verify step reasoning", "ts": 1700000116}
+{"id": "m117", "role": "assistant", "content": "the prefix token prompt token", "ts": 1700000117}
+{"id": "m118", "role": "tool", "content": "context compaction prompt window", "ts": 1700000118}
+{"id": "m119", "role": "system", "content": "trace compaction draft draft", "ts": 1700000119}
+{"id": "m120", "role": "user", "content": "kv compaction scaffold model", "ts": 1700000120}
+{"id": "m121", "role": "assistant", "content": "warm compaction model loop", "ts": 1700000121}
+{"id": "m122", "role": "tool", "content": "cache reasoning replay loop model", "ts": 1700000122}
+{"id": "m123", "role": "system", "content": "kv warm replay context scaffold", "ts": 1700000123}
+{"id": "m124", "role": "user", "content": "warm token guard draft", "ts": 1700000124}
+{"id": "m125", "role": "assistant", "content": "cold draft token prefix cache trace", "ts": 1700000125}
+{"id": "m126", "role": "tool", "content": "reasoning window prefix replay loop", "ts": 1700000126}
+{"id": "m127", "role": "system", "content": "context reasoning trace cache guard token", "ts": 1700000127}
+{"id": "m128", "role": "user", "content": "the kv step kv", "ts": 1700000128}
+{"id": "m129", "role": "assistant", "content": "context the draft window", "ts": 1700000129}
+{"id": "m130", "role": "tool", "content": "evict cold warm prompt verify model", "ts": 1700000130}
+{"id": "m131", "role": "system", "content": "guard evict warm verify token prompt", "ts": 1700000131}
+{"id": "m132", "role": "user", "content": "verify draft guard window reasoning trace", "ts": 1700000132}
+{"id": "m133", "role": "assistant", "content": "compaction scaffold draft cache compaction", "ts": 1700000133}
+{"id": "m134", "role": "tool", "content": "window the trace prefix", "ts": 1700000134}
+{"id": "m135", "role": "system", "content": "replay guard token reasoning cold step", "ts": 1700000135}
+{"id": "m136", "role": "user", "content": "evict step step guard", "ts": 1700000136}
+{"id": "m137", "role": "assistant", "content": "draft compaction guard prompt cache", "ts": 1700000137}
+{"id": "m138", "role": "tool", "content": "compaction prompt compaction draft trace", "ts": 1700000138}
+{"id": "m139", "role": "system", "content": "kv window warm loop replay the", "ts": 1700000139}
+{"id": "m140", "role": "user", "content": "draft step evict scaffold prompt", "ts": 1700000140}
+{"id": "m141", "role": "assistant", "content": "model step warm cold", "ts": 1700000141}
+{"id": "m142", "role": "tool", "content": "compaction verify kv cache", "ts": 1700000142}
+{"id": "m143", "role": "system", "content": "token evict compaction scaffold draft", "ts": 1700000143}
+{"id": "m144", "role": "user", "content": "the cache loop prefix", "ts": 1700000144}
+{"id": "m145", "role": "assistant", "content": "scaffold replay evict kv", "ts": 1700000145}
+{"id": "m146", "role": "tool", "content": "kv draft guard loop", "ts": 1700000146}
+{"id": "m147", "role": "system", "content": "evict token warm evict trace model", "ts": 1700000147}
+{"id": "m148", "role": "user", "content": "prefix warm the window reasoning", "ts": 1700000148}
+{"id": "m149", "role": "assistant", "content": "reasoning draft trace prompt step", "ts": 1700000149}
+{"id": "m150", "role": "tool", "content": "loop verify cache warm", "ts": 1700000150}
+{"id": "m151", "role": "system", "content": "prefix draft warm trace window", "ts": 1700000151}
+{"id": "m152", "role": "user", "content": "prefix replay reasoning evict scaffold compaction", "ts": 1700000152}
+{"id": "m153", "role": "assistant", "content": "replay prompt scaffold reasoning", "ts": 1700000153}
+{"id": "m154", "role": "tool", "content": "token token prefix scaffold compaction draft", "ts": 1700000154}
+{"id": "m155", "role": "system", "content": "context warm guard context", "ts": 1700000155}
+{"id": "m156", "role": "user", "content": "kv draft trace kv model", "ts": 1700000156}
+{"id": "m157", "role": "assistant", "content": "model replay cold step", "ts": 1700000157}
+{"id": "m158", "role": "tool", "content": "warm step verify cold reasoning", "ts": 1700000158}
+{"id": "m159", "role": "system", "content": "replay replay context cold prefix replay", "ts": 1700000159}
+{"id": "m160", "role": "user", "content": "draft replay the replay warm", "ts": 1700000160}
+{"id": "m161", "role": "assistant", "content": "scaffold prefix the context", "ts": 1700000161}
+{"id": "m162", "role": "tool", "content": "evict replay reasoning prefix", "ts": 1700000162}
+{"id": "m163", "role": "system", "content": "cold kv model warm the", "ts": 1700000163}
+{"id": "m164", "role": "user", "content": "scaffold replay context window the warm", "ts": 1700000164}
+{"id": "m165", "role": "assistant", "content": "compaction compaction guard scaffold", "ts": 1700000165}
+{"id": "m166", "role": "tool", "content": "trace evict kv compaction", "ts": 1700000166}
+{"id": "m167", "role": "system", "content": "draft scaffold reasoning warm loop", "ts": 1700000167}
+{"id": "m168", "role": "user", "content": "prompt warm window window the", "ts": 1700000168}
+{"id": "m169", "role": "assistant", "content": "cold loop context draft evict", "ts": 1700000169}
+{"id": "m170", "role": "tool", "content": "draft trace the cold", "ts": 1700000170}
+{"id": "m171", "role": "system", "content": "kv guard prefix warm prefix reasoning", "ts": 1700000171}
+{"id": "m172", "role": "user", "content": "model guard the cold", "ts": 1700000172}
+{"id": "m173", "role": "assistant", "content": "the model warm prompt token", "ts": 1700000173}
+{"id": "m174", "role": "tool", "content": "kv token step trace", "ts": 1700000174}
+{"id": "m175", "role": "system", "content": "scaffold replay model evict prompt compaction", "ts": 1700000175}
+{"id": "m176", "role": "user", "content": "compaction token kv compaction guard prefix", "ts": 1700000176}
+{"id": "m177", "role": "assistant", "content": "prompt scaffold evict guard guard window", "ts": 1700000177}
+{"id": "m178", "role": "tool", "content": "prompt cache warm kv kv", "ts": 1700000178}
+{"id": "m179", "role": "system", "content": "reasoning verify cold evict", "ts": 1700000179}
+{"id": "m180", "role": "user", "content": "context warm prompt token", "ts": 1700000180}
+{"id": "m181", "role": "assistant", "content": "trace loop context step verify step", "ts": 1700000181}
+{"id": "m182", "role": "tool", "content": "prompt scaffold kv cache scaffold the", "ts": 1700000182}
+{"id": "m183", "role": "system", "content": "window window prompt compaction", "ts": 1700000183}
+{"id": "m184", "role": "user", "content": "loop loop guard the", "ts": 1700000184}
+{"id": "m185", "role": "assistant", "content": "the scaffold evict loop loop cold", "ts": 1700000185}
+{"id": "m186", "role": "tool", "content": "guard compaction reasoning step replay", "ts": 1700000186}
+{"id": "m187", "role": "system", "content": "guard draft warm cache token reasoning", "ts": 1700000187}
+{"id": "m188", "role": "user", "content": "evict verify prompt evict", "ts": 1700000188}
+{"id": "m189", "role": "assistant", "content": "window trace compaction cold window reasoning", "ts": 1700000189}
+{"id": "m190", "role": "tool", "content": "evict scaffold compaction scaffold warm", "ts": 1700000190}
+{"id": "m191", "role": "system", "content": "evict replay replay kv loop", "ts": 1700000191}
+{"id": "m192", "role": "user", "content": "context trace trace token step evict", "ts": 1700000192}
+{"id": "m193", "role": "assistant", "content": "cold compaction cold token prompt", "ts": 1700000193}
+{"id": "m194", "role": "tool", "content": "cold prefix kv warm evict cold", "ts": 1700000194}
+{"id": "m195", "role": "system", "content": "the loop compaction step scaffold window", "ts": 1700000195}
+{"id": "m196", "role": "user", "content": "prefix prefix replay warm loop step", "ts": 1700000196}
+{"id": "m197", "role": "assistant", "content": "prefix reasoning loop window the", "ts": 1700000197}
+{"id": "m198", "role": "tool", "content": "context window model loop", "ts": 1700000198}
+{"id": "m199", "role": "system", "content": "token cache compaction prefix replay", "ts": 1700000199}
+{"id": "m200", "role": "user", "content": "window verify compaction draft", "ts": 1700000200}
+{"id": "m201", "role": "assistant", "content": "guard draft cold guard window", "ts": 1700000201}
+{"id": "m202", "role": "tool", "content": "guard draft replay prefix reasoning", "ts": 1700000202}
+{"id": "m203", "role": "system", "content": "cold prompt verify evict warm", "ts": 1700000203}
+{"id": "m204", "role": "user", "content": "cold context prefix evict", "ts": 1700000204}
+{"id": "m205", "role": "assistant", "content": "token cold verify warm token", "ts": 1700000205}
+{"id": "m206", "role": "tool", "content": "trace kv warm cache", "ts": 1700000206}
+{"id": "m207", "role": "system", "content": "prompt kv warm replay trace token", "ts": 1700000207}
+{"id": "m208", "role": "user", "content": "token warm draft context", "ts": 1700000208}
+{"id": "m209", "role": "assistant", "content": "replay model reasoning model prefix token", "ts": 1700000209}
+{"id": "m210", "role": "tool", "content": "verify replay window warm", "ts": 1700000210}
+{"id": "m211", "role": "system", "content": "replay model window step prompt cold", "ts": 1700000211}
+{"id": "m212", "role": "user", "content": "verify draft draft guard", "ts": 1700000212}
+{"id": "m213", "role": "assistant", "content": "prefix compaction loop step warm warm", "ts": 1700000213}
+{"id": "m214", "role": "tool", "content": "trace step context prefix warm scaffold", "ts": 1700000214}
+{"id": "m215", "role": "system", "content": "guard window verify window warm verify", "ts": 1700000215}
+{"id": "m216", "role": "user", "content": "loop warm trace prefix loop", "ts": 1700000216}
+{"id": "m217", "role": "assistant", "content": "draft evict loop window", "ts": 1700000217}
+{"id": "m218", "role": "tool", "content": "reasoning compaction step window", "ts": 1700000218}
+{"id": "m219", "role": "system", "content": "verify token window verify trace evict", "ts": 1700000219}
+{"id": "m220", "role": "user", "content": "scaffold token guard scaffold verify", "ts": 1700000220}
+{"id": "m221", "role": "assistant", "content": "verify loop evict replay prefix", "ts": 1700000221}
+{"id": "m222", "role": "tool", "content": "step window compaction kv", "ts": 1700000222}
+{"id": "m223", "role": "system", "content": "prefix cold model cache", "ts": 1700000223}
+{"id": "m224", "role": "user", "content": "compaction token trace the", "ts": 1700000224}
+{"id": "m225", "role": "assistant", "content": "loop evict the replay draft", "ts": 1700000225}
+{"id": "m226", "role": "tool", "content": "warm context trace loop verify", "ts": 1700000226}
+{"id": "m227", "role": "system", "content": "reasoning evict loop prompt prefix", "ts": 1700000227}
+{"id": "m228", "role": "user", "content": "kv scaffold the compaction compaction verify", "ts": 1700000228}
+{"id": "m229", "role": "assistant", "content": "scaffold context token trace trace", "ts": 1700000229}
+{"id": "m230", "role": "tool", "content": "reasoning compaction guard kv cache", "ts": 1700000230}
+{"id": "m231", "role": "system", "content": "guard draft replay warm replay", "ts": 1700000231}
+{"id": "m232", "role": "user", "content": "kv context replay window warm", "ts": 1700000232}
+{"id": "m233", "role": "assistant", "content": "kv prefix cold verify reasoning guard", "ts": 1700000233}
+{"id": "m234", "role": "tool", "content": "window trace kv replay", "ts": 1700000234}
+{"id": "m235", "role": "system", "content": "loop replay warm loop", "ts": 1700000235}
+{"id": "m236", "role": "user", "content": "warm cold verify kv prefix", "ts": 1700000236}
+{"id": "m237", "role": "assistant", "content": "verify reasoning kv warm replay the", "ts": 1700000237}
+{"id": "m238", "role": "tool", "content": "cold reasoning cache cache kv", "ts": 1700000238}
+{"id": "m239", "role": "system", "content": "step window prompt kv guard", "ts": 1700000239}
+{"id": "m240", "role": "user", "content": "prefix warm reasoning cache", "ts": 1700000240}
+{"id": "m241", "role": "assistant", "content": "model scaffold reasoning scaffold", "ts": 1700000241}
+{"id": "m242", "role": "tool", "content": "scaffold verify cold prefix cold scaffold", "ts": 1700000242}
+{"id": "m243", "role": "system", "content": "compaction evict draft reasoning draft token", "ts": 1700000243}
+{"id": "m244", "role": "user", "content": "verify verify window kv cache draft", "ts": 1700000244}
+{"id": "m245", "role": "assistant", "content": "replay model step draft", "ts": 1700000245}
+{"id": "m246", "role": "tool", "content": "cold token guard reasoning draft", "ts": 1700000246}
+{"id": "m247", "role": "system", "content": "reasoning cache context model verify trace", "ts": 1700000247}
+{"id": "m248", "role": "user", "content": "compaction cold cold token model the", "ts": 1700000248}
+{"id": "m249", "role": "assistant", "content": "trace cold step model step prefix", "ts": 1700000249}
+{"id": "m250", "role": "tool", "content": "window evict token loop cold", "ts": 1700000250}
+{"id": "m251", "role": "system", "content": "context step prompt trace", "ts": 1700000251}
+{"id": "m252", "role": "user", "content": "window token cache window", "ts": 1700000252}
+{"id": "m253", "role": "assistant", "content": "the cold cold cold kv", "ts": 1700000253}
+{"id": "m254", "role": "tool", "content": "the window loop scaffold", "ts": 1700000254}
+{"id": "m255", "role": "system", "content": "window loop trace prompt warm the", "ts": 1700000255}
+{"id": "m256", "role": "user", "content": "token context prefix context verify replay", "ts": 1700000256}
+{"id": "m257", "role": "assistant", "content": "cache cache cache context scaffold trace", "ts": 1700000257}
+{"id": "m258", "role": "tool", "content": "prompt the replay scaffold draft", "ts": 1700000258}
+{"id": "m259", "role": "system", "content": "trace prompt trace replay context", "ts": 1700000259}
+{"id": "m260", "role": "user", "content": "loop window cache trace cache draft", "ts": 1700000260}
+{"id": "m261", "role": "assistant", "content": "verify compaction cache draft trace", "ts": 1700000261}
+{"id": "m262", "role": "tool", "content": "scaffold trace kv reasoning", "ts": 1700000262}
+{"id": "m263", "role": "system", "content": "reasoning kv reasoning cache window trace", "ts": 1700000263}
+{"id": "m264", "role": "user", "content": "draft context prefix the kv", "ts": 1700000264}
+{"id": "m265", "role": "assistant", "content": "prefix window model context trace", "ts": 1700000265}
+{"id": "m266", "role": "tool", "content": "compaction kv the prompt", "ts": 1700000266}
+{"id": "m267", "role": "system", "content": "compaction context prefix guard verify", "ts": 1700000267}
+{"id": "m268", "role": "user", "content": "step step window window evict", "ts": 1700000268}
+{"id": "m269", "role": "assistant", "content": "trace prompt cache prompt verify loop", "ts": 1700000269}
+{"id": "m270", "role": "tool", "content": "kv draft evict verify", "ts": 1700000270}
+{"id": "m271", "role": "system", "content": "scaffold evict evict loop prompt evict", "ts": 1700000271}
+{"id": "m272", "role": "user", "content": "reasoning reasoning verify replay draft", "ts": 1700000272}
+{"id": "m273", "role": "assistant", "content": "prefix prefix context trace prompt prefix", "ts": 1700000273}
+{"id": "m274", "role": "tool", "content": "prefix context step model context", "ts": 1700000274}
+{"id": "m275", "role": "system", "content": "trace replay model window replay", "ts": 1700000275}
+{"id": "m276", "role": "user", "content": "prompt scaffold cache loop", "ts": 1700000276}
+{"id": "m277", "role": "assistant", "content": "cache step loop draft reasoning", "ts": 1700000277}
+{"id": "m278", "role": "tool", "content": "trace compaction compaction cache prefix prefix", "ts": 1700000278}
+{"id": "m279", "role": "system", "content": "warm cache compaction reasoning", "ts": 1700000279}
+{"id": "m280", "role": "user", "content": "trace model scaffold verify reasoning", "ts": 1700000280}
+{"id": "m281", "role": "assistant", "content": "compaction compaction replay prompt kv scaffold", "ts": 1700000281}
+{"id": "m282", "role": "tool", "content": "prompt trace cache prompt prompt", "ts": 1700000282}
+{"id": "m283", "role": "system", "content": "kv step draft loop", "ts": 1700000283}
+{"id": "m284", "role": "user", "content": "draft trace step loop replay", "ts": 1700000284}
+{"id": "m285", "role": "assistant", "content": "context evict evict draft step", "ts": 1700000285}
+{"id": "m286", "role": "tool", "content": "warm context the guard", "ts": 1700000286}
+{"id": "m287", "role": "system", "content": "compaction step evict loop scaffold trace", "ts": 1700000287}
+{"id": "m288", "role": "user", "content": "step token warm step cold", "ts": 1700000288}
+{"id": "m289", "role": "assistant", "content": "draft step window cold prefix model", "ts": 1700000289}
+{"id": "m290", "role": "tool", "content": "kv scaffold loop trace kv prompt", "ts": 1700000290}
+{"id": "m291", "role": "system", "content": "kv kv guard token prefix", "ts": 1700000291}
+{"id": "m292", "role": "user", "content": "trace kv replay window token", "ts": 1700000292}
+{"id": "m293", "role": "assistant", "content": "cache evict evict the verify replay", "ts": 1700000293}
+{"id": "m294", "role": "tool", "content": "compaction guard the loop", "ts": 1700000294}
+{"id": "m295", "role": "system", "content": "reasoning trace step replay", "ts": 1700000295}
+{"id": "m296", "role": "user", "content": "prompt the loop verify", "ts": 1700000296}
+{"id": "m297", "role": "assistant", "content": "trace token loop warm", "ts": 1700000297}
+{"id": "m298", "role": "tool", "content": "evict evict prefix scaffold kv", "ts": 1700000298}
+{"id": "m299", "role": "system", "content": "context scaffold reasoning replay guard", "ts": 1700000299}
+{"id": "m300", "role": "user", "content": "kv step step draft step", "ts": 1700000300}
+{"id": "m301", "role": "assistant", "content": "draft trace loop prompt step", "ts": 1700000301}
+{"id": "m302", "role": "tool", "content": "warm replay loop cold prompt trace", "ts": 1700000302}
+{"id": "m303", "role": "system", "content": "model kv guard prefix reasoning loop", "ts": 1700000303}
+{"id": "m304", "role": "user", "content": "compaction context model the evict", "ts": 1700000304}
+{"id": "m305", "role": "assistant", "content": "token guard cold context trace", "ts": 1700000305}
+{"id": "m306", "role": "tool", "content": "the loop trace draft draft", "ts": 1700000306}
+{"id": "m307", "role": "system", "content": "guard the draft trace warm prefix", "ts": 1700000307}
+{"id": "m308", "role": "user", "content": "replay cache token the evict step", "ts": 1700000308}
+{"id": "m309", "role": "assistant", "content": "prompt cache compaction window prefix evict", "ts": 1700000309}
+{"id": "m310", "role": "tool", "content": "model kv context cache", "ts": 1700000310}
+{"id": "m311", "role": "system", "content": "the prompt evict loop context", "ts": 1700000311}
+{"id": "m312", "role": "user", "content": "window kv compaction model cache", "ts": 1700000312}
+{"id": "m313", "role": "assistant", "content": "the guard prompt guard cold loop", "ts": 1700000313}
+{"id": "m314", "role": "tool", "content": "guard verify scaffold prompt prefix reasoning", "ts": 1700000314}
+{"id": "m315", "role": "system", "content": "draft window reasoning compaction trace", "ts": 1700000315}
+{"id": "m316", "role": "user", "content": "compaction cold guard guard prompt trace", "ts": 1700000316}
+{"id": "m317", "role": "assistant", "content": "replay scaffold prompt the compaction", "ts": 1700000317}
+{"id": "m318", "role": "tool", "content": "token warm token step", "ts": 1700000318}
+{"id": "m319", "role": "system", "content": "token compaction verify window draft", "ts": 1700000319}
+{"id": "m320", "role": "user", "content": "loop draft cache compaction step model", "ts": 1700000320}
+{"id": "m321", "role": "assistant", "content": "prefix loop model trace evict", "ts": 1700000321}
+{"id": "m322", "role": "tool", "content": "evict warm prefix prompt warm cold", "ts": 1700000322}
+{"id": "m323", "role": "system", "content": "verify context verify verify cold warm", "ts": 1700000323}
+{"id": "m324", "role": "user", "content": "evict guard cold loop", "ts": 1700000324}
+{"id": "m325", "role": "assistant", "content": "verify model compaction evict step scaffold", "ts": 1700000325}
+{"id": "m326", "role": "tool", "content": "guard compaction warm reasoning", "ts": 1700000326}
+{"id": "m327", "role": "system", "content": "reasoning context draft the", "ts": 1700000327}
+{"id": "m328", "role": "user", "content": "reasoning cold window reasoning warm", "ts": 1700000328}
+{"id": "m329", "role": "assistant", "content": "verify model window scaffold replay the", "ts": 1700000329}
+{"id": "m330", "role": "tool", "content": "model model guard prompt trace", "ts": 1700000330}
+{"id": "m331", "role": "system", "content": "reasoning trace scaffold replay compaction scaffold", "ts": 1700000331}
+{"id": "m332", "role": "user", "content": "reasoning step the prompt", "ts": 1700000332}
+{"id": "m333", "role": "assistant", "content": "loop token prompt scaffold", "ts": 1700000333}
+{"id": "m334", "role": "tool", "content": "window the reasoning window scaffold scaffold", "ts": 1700000334}
+{"id": "m335", "role": "system", "content": "cold compaction cold prefix kv compaction", "ts": 1700000335}
+{"id": "m336", "role": "user", "content": "evict warm reasoning reasoning", "ts": 1700000336}
+{"id": "m337", "role": "assistant", "content": "kv kv compaction reasoning cold", "ts": 1700000337}
+{"id": "m338", "role": "tool", "content": "model trace prompt reasoning", "ts": 1700000338}
+{"id": "m339", "role": "system", "content": "loop token draft loop step", "ts": 1700000339}
+{"id": "m340", "role": "user", "content": "cold kv trace window kv", "ts": 1700000340}
+{"id": "m341", "role": "assistant", "content": "replay kv verify prompt evict loop", "ts": 1700000341}
+{"id": "m342", "role": "tool", "content": "context verify prefix model draft", "ts": 1700000342}
+{"id": "m343", "role": "system", "content": "reasoning model warm loop cache verify", "ts": 1700000343}
+{"id": "m344", "role": "user", "content": "replay loop window the compaction the", "ts": 1700000344}
+{"id": "m345", "role": "assistant", "content": "replay cache the kv model guard", "ts": 1700000345}
+{"id": "m346", "role": "tool", "content": "the warm cold draft draft", "ts": 1700000346}
+{"id": "m347", "role": "system", "content": "evict prefix guard kv", "ts": 1700000347}
+{"id": "m348", "role": "user", "content": "window context trace verify", "ts": 1700000348}
+{"id": "m349", "role": "assistant", "content": "trace guard warm prompt", "ts": 1700000349}
+{"id": "m350", "role": "tool", "content": "window compaction model cold window", "ts": 1700000350}
+{"id": "m351", "role": "system", "content": "prefix loop the the window window", "ts": 1700000351}
+{"id": "m352", "role": "user", "content": "context token prompt kv the replay", "ts": 1700000352}
+{"id": "m353", "role": "assistant", "content": "warm the replay guard", "ts": 1700000353}
+{"id": "m354", "role": "tool", "content": "loop verify model loop", "ts": 1700000354}
+{"id": "m355", "role": "system", "content": "kv scaffold cold step scaffold cold", "ts": 1700000355}
+{"id": "m356", "role": "user", "content": "compaction guard prompt window", "ts": 1700000356}
+{"id": "m357", "role": "assistant", "content": "model warm draft cache token", "ts": 1700000357}
+{"id": "m358", "role": "tool", "content": "the draft token window prompt", "ts": 1700000358}
+{"id": "m359", "role": "system", "content": "token evict verify replay the evict", "ts": 1700000359}
+{"id": "m360", "role": "user", "content": "replay scaffold context guard", "ts": 1700000360}
+{"id": "m361", "role": "assistant", "content": "draft verify loop draft scaffold", "ts": 1700000361}
+{"id": "m362", "role": "tool", "content": "warm verify step prompt", "ts": 1700000362}
+{"id": "m363", "role": "system", "content": "replay trace window cold step", "ts": 1700000363}
+{"id": "m364", "role": "user", "content": "warm step context reasoning", "ts": 1700000364}
+{"id": "m365", "role": "assistant", "content": "scaffold kv token guard window warm", "ts": 1700000365}
+{"id": "m366", "role": "tool", "content": "the prompt model evict kv cache", "ts": 1700000366}
+{"id": "m367", "role": "system", "content": "reasoning the cache the compaction", "ts": 1700000367}
+{"id": "m368", "role": "user", "content": "evict loop cold model", "ts": 1700000368}
+{"id": "m369", "role": "assistant", "content": "reasoning reasoning cold kv", "ts": 1700000369}
+{"id": "m370", "role": "tool", "content": "warm compaction guard cold", "ts": 1700000370}
+{"id": "m371", "role": "system", "content": "context trace cache reasoning trace cache", "ts": 1700000371}
+{"id": "m372", "role": "user", "content": "prefix cold model trace", "ts": 1700000372}
+{"id": "m373", "role": "assistant", "content": "guard replay prompt loop replay guard", "ts": 1700000373}
+{"id": "m374", "role": "tool", "content": "model loop prompt prompt prompt token", "ts": 1700000374}
+{"id": "m375", "role": "system", "content": "warm trace prompt prefix draft", "ts": 1700000375}
+{"id": "m376", "role": "user", "content": "prompt prompt draft window reasoning loop", "ts": 1700000376}
+{"id": "m377", "role": "assistant", "content": "scaffold prefix draft warm token scaffold", "ts": 1700000377}
+{"id": "m378", "role": "tool", "content": "window cache replay prefix window trace", "ts": 1700000378}
+{"id": "m379", "role": "system", "content": "evict warm draft replay", "ts": 1700000379}
+{"id": "m380", "role": "user", "content": "step guard token reasoning trace", "ts": 1700000380}
+{"id": "m381", "role": "assistant", "content": "cold cold replay kv prompt", "ts": 1700000381}
+{"id": "m382", "role": "tool", "content": "evict draft prefix evict reasoning the", "ts": 1700000382}
+{"id": "m383", "role": "system", "content": "kv loop prefix trace", "ts": 1700000383}
+{"id": "m384", "role": "user", "content": "guard draft step prefix loop replay", "ts": 1700000384}
+{"id": "m385", "role": "assistant", "content": "trace compaction token compaction token token", "ts": 1700000385}
+{"id": "m386", "role": "tool", "content": "model the evict scaffold cache cold", "ts": 1700000386}
+{"id": "m387", "role": "system", "content": "step kv prefix model draft guard", "ts": 1700000387}
+{"id": "m388", "role": "user", "content": "evict trace reasoning reasoning compaction cache", "ts": 1700000388}
+{"id": "m389", "role": "assistant", "content": "loop loop warm loop scaffold loop", "ts": 1700000389}
+{"id": "m390", "role": "tool", "content": "compaction trace cache prefix draft compaction", "ts": 1700000390}
+{"id": "m391", "role": "system", "content": "step replay warm cache", "ts": 1700000391}
+{"id": "m392", "role": "user", "content": "window evict prompt draft", "ts": 1700000392}
+{"id": "m393", "role": "assistant", "content": "context token loop cache trace", "ts": 1700000393}
+{"id": "m394", "role": "tool", "content": "token token cache reasoning verify guard", "ts": 1700000394}
+{"id": "m395", "role": "system", "content": "prompt step trace draft verify scaffold", "ts": 1700000395}
+{"id": "m396", "role": "user", "content": "loop prefix prompt model trace model", "ts": 1700000396}
+{"id": "m397", "role": "assistant", "content": "trace step context evict verify compaction", "ts": 1700000397}
+{"id": "m398", "role": "tool", "content": "token loop verify cache replay step", "ts": 1700000398}
+{"id": "m399", "role": "system", "content": "token warm cache prompt model warm", "ts": 1700000399}
+{"id": "m400", "role": "user", "content": "step prompt kv evict compaction step", "ts": 1709999999}
+{"id": "m401", "role": "assistant", "content": "window kv trace kv compaction", "ts": 1709999999}
+{"id": "m402", "role": "tool", "content": "prefix evict evict the compaction replay", "ts": 1709999999}
+{"id": "m403", "role": "system", "content": "draft the cold step compaction", "ts": 1709999999}
+{"id": "m404", "role": "user", "content": "compaction verify kv cache step", "ts": 1709999999}
+{"id": "m405", "role": "assistant", "content": "scaffold the kv replay prefix", "ts": 1709999999}
+{"id": "m406", "role": "tool", "content": "compaction evict context verify", "ts": 1709999999}
+{"id": "m407", "role": "system", "content": "trace reasoning warm the", "ts": 1709999999}
+{"id": "m408", "role": "user", "content": "trace cold replay cache reasoning", "ts": 1709999999}
+{"id": "m409", "role": "assistant", "content": "window step the window", "ts": 1709999999}
+{"id": "m410", "role": "tool", "content": "cache the token step context", "ts": 1709999999}
+{"id": "m411", "role": "system", "content": "verify compaction reasoning step scaffold window", "ts": 1709999999}
+{"id": "m412", "role": "user", "content": "cache the warm prefix draft cold", "ts": 1709999999}
+{"id": "m413", "role": "assistant", "content": "prefix evict cold model replay", "ts": 1709999999}
+{"id": "m414", "role": "tool", "content": "compaction model cache warm loop token", "ts": 1709999999}
+{"id": "m415", "role": "system", "content": "compaction verify kv model", "ts": 1709999999}
+{"id": "m416", "role": "user", "content": "window draft scaffold evict the cache", "ts": 1709999999}
+{"id": "m417", "role": "assistant", "content": "loop the scaffold prompt", "ts": 1709999999}
+{"id": "m418", "role": "tool", "content": "prompt model step warm", "ts": 1709999999}
+{"id": "m419", "role": "system", "content": "cache compaction compaction verify kv", "ts": 1709999999}
+{"id": "m420", "role": "user", "content": "kv cache prefix cold", "ts": 1709999999}
+{"id": "m421", "role": "assistant", "content": "the prompt evict scaffold model", "ts": 1709999999}
+{"id": "m422", "role": "tool", "content": "step window token reasoning", "ts": 1709999999}
+{"id": "m423", "role": "system", "content": "trace prompt evict kv token step", "ts": 1709999999}
+{"id": "m424", "role": "user", "content": "reasoning cold replay guard draft token", "ts": 1709999999}
+{"id": "m425", "role": "assistant", "content": "verify draft the kv prefix replay", "ts": 1709999999}
+{"id": "m426", "role": "tool", "content": "guard replay warm prompt prefix", "ts": 1709999999}
+{"id": "m427", "role": "system", "content": "prefix warm guard guard trace context", "ts": 1709999999}
+{"id": "m428", "role": "user", "content": "window replay loop draft", "ts": 1709999999}
+{"id": "m429", "role": "assistant", "content": "replay the step loop trace trace", "ts": 1709999999}
+{"id": "m430", "role": "tool", "content": "window prefix the prefix", "ts": 1709999999}
+{"id": "m431", "role": "system", "content": "verify draft cache replay replay reasoning", "ts": 1709999999}
+{"id": "m432", "role": "user", "content": "token cold prefix compaction", "ts": 1709999999}
+{"id": "m433", "role": "assistant", "content": "evict prompt prefix trace", "ts": 1709999999}
+{"id": "m434", "role": "tool", "content": "draft prefix kv window model scaffold", "ts": 1709999999}
+{"id": "m435", "role": "system", "content": "prefix prompt the token verify evict", "ts": 1709999999}
+{"id": "m436", "role": "user", "content": "kv loop trace warm", "ts": 1709999999}
+{"id": "m437", "role": "assistant", "content": "reasoning model draft cold context reasoning", "ts": 1709999999}
+{"id": "m438", "role": "tool", "content": "loop prompt prompt replay", "ts": 1709999999}
+{"id": "m439", "role": "system", "content": "warm token trace model", "ts": 1709999999}
+{"id": "m440", "role": "user", "content": "guard replay the trace model window", "ts": 1709999999}
+{"id": "m441", "role": "assistant", "content": "reasoning prefix trace evict window", "ts": 1709999999}
+{"id": "m442", "role": "tool", "content": "loop cache context scaffold draft replay", "ts": 1709999999}
+{"id": "m443", "role": "system", "content": "prompt trace model prompt prefix", "ts": 1709999999}
+{"id": "m444", "role": "user", "content": "loop scaffold window the cache", "ts": 1709999999}
+{"id": "m445", "role": "assistant", "content": "kv evict prompt model", "ts": 1709999999}
+{"id": "m446", "role": "tool", "content": "replay scaffold scaffold trace prompt model", "ts": 1709999999}
+{"id": "m447", "role": "system", "content": "trace prompt prompt step replay reasoning", "ts": 1709999999}
+{"id": "m448", "role": "user", "content": "prefix model window evict", "ts": 1709999999}
+{"id": "m449", "role": "assistant", "content": "draft reasoning guard warm draft reasoning", "ts": 1709999999}
+{"id": "m450", "role": "tool", "content": "prompt token prefix guard cache", "ts": 1709999999}
+{"id": "m451", "role": "system", "content": "loop context step the guard", "ts": 1709999999}
+{"id": "m452", "role": "user", "content": "prefix kv prompt cache loop", "ts": 1709999999}
+{"id": "m453", "role": "assistant", "content": "prefix guard token cold", "ts": 1709999999}
+{"id": "m454", "role": "tool", "content": "the context model step token token", "ts": 1709999999}
+{"id": "m455", "role": "system", "content": "prefix verify reasoning context kv", "ts": 1709999999}
+{"id": "m456", "role": "user", "content": "model window window verify model the", "ts": 1709999999}
+{"id": "m457", "role": "assistant", "content": "window token model draft step", "ts": 1709999999}
+{"id": "m458", "role": "tool", "content": "guard loop prefix trace prompt", "ts": 1709999999}
+{"id": "m459", "role": "system", "content": "model evict evict kv", "ts": 1709999999}
+{"id": "m460", "role": "user", "content": "scaffold prompt the replay warm compaction", "ts": 1709999999}
+{"id": "m461", "role": "assistant", "content": "evict warm draft evict warm model", "ts": 1709999999}
+{"id": "m462", "role": "tool", "content": "context evict the step kv", "ts": 1709999999}
+{"id": "m463", "role": "system", "content": "window prompt compaction trace replay cold", "ts": 1709999999}
+{"id": "m464", "role": "user", "content": "window verify cold reasoning", "ts": 1709999999}
+{"id": "m465", "role": "assistant", "content": "prompt evict cold guard model scaffold", "ts": 1709999999}
+{"id": "m466", "role": "tool", "content": "token draft context guard prompt evict", "ts": 1709999999}
+{"id": "m467", "role": "system", "content": "loop the compaction step loop evict", "ts": 1709999999}
+{"id": "m468", "role": "user", "content": "context cold reasoning guard", "ts": 1709999999}
+{"id": "m469", "role": "assistant", "content": "guard token verify cache prompt", "ts": 1709999999}
+{"id": "m470", "role": "tool", "content": "draft prefix scaffold context scaffold", "ts": 1709999999}
+{"id": "m471", "role": "system", "content": "prompt model evict loop scaffold", "ts": 1709999999}
+{"id": "m472", "role": "user", "content": "trace model replay prompt", "ts": 1709999999}
+{"id": "m473", "role": "assistant", "content": "replay prompt draft model", "ts": 1709999999}
+{"id": "m474", "role": "tool", "content": "kv verify kv replay scaffold warm", "ts": 1709999999}
+{"id": "m475", "role": "system", "content": "replay kv prefix verify", "ts": 1709999999}
+{"id": "m476", "role": "user", "content": "kv model compaction window cold", "ts": 1709999999}
+{"id": "m477", "role": "assistant", "content": "compaction scaffold token evict", "ts": 1709999999}
+{"id": "m478", "role": "tool", "content": "evict evict kv cold", "ts": 1709999999}
+{"id": "m479", "role": "system", "content": "prefix prefix compaction the", "ts": 1709999999}
+{"id": "m480", "role": "user", "content": "compaction warm scaffold step prompt cold", "ts": 1709999999}
+{"id": "m481", "role": "assistant", "content": "window replay compaction step cache the", "ts": 1709999999}
+{"id": "m482", "role": "tool", "content": "prompt replay draft warm compaction", "ts": 1709999999}
+{"id": "m483", "role": "system", "content": "prefix prompt verify window", "ts": 1709999999}
+{"id": "m484", "role": "user", "content": "the guard prompt scaffold loop", "ts": 1709999999}
+{"id": "m485", "role": "assistant", "content": "cache model compaction step cold scaffold", "ts": 1709999999}
+{"id": "m486", "role": "tool", "content": "model loop cold loop loop", "ts": 1709999999}
+{"id": "m487", "role": "system", "content": "step verify reasoning reasoning evict replay", "ts": 1709999999}
+{"id": "m488", "role": "user", "content": "guard loop replay window", "ts": 1709999999}
+{"id": "m489", "role": "assistant", "content": "window loop step replay", "ts": 1709999999}
+{"id": "m490", "role": "tool", "content": "trace loop draft prompt", "ts": 1709999999}
+{"id": "m491", "role": "system", "content": "step draft guard draft window", "ts": 1709999999}
+{"id": "m492", "role": "user", "content": "replay replay prefix guard replay", "ts": 1709999999}
+{"id": "m493", "role": "assistant", "content": "replay replay scaffold kv", "ts": 1709999999}
+{"id": "m494", "role": "tool", "content": "compaction guard model replay", "ts": 1709999999}
+{"id": "m495", "role": "system", "content": "guard compaction prefix model the", "ts": 1709999999}
+{"id": "m496", "role": "user", "content": "scaffold step loop guard the", "ts": 1709999999}
+{"id": "m497", "role": "assistant", "content": "scaffold window kv kv trace replay", "ts": 1709999999}
+{"id": "m498", "role": "tool", "content": "verify window loop trace scaffold compaction", "ts": 1709999999}
+{"id": "m499", "role": "system", "content": "model cold reasoning cache", "ts": 1709999999}
+{"id": "m500", "role": "user", "content": "compaction draft cold scaffold window", "ts": 1709999999}
+{"id": "m501", "role": "assistant", "content": "kv token cold prompt draft cold", "ts": 1709999999}
+{"id": "m502", "role": "tool", "content": "cold step guard prompt", "ts": 1709999999}
+{"id": "m503", "role": "system", "content": "prompt verify warm draft scaffold", "ts": 1709999999}
+{"id": "m504", "role": "user", "content": "prompt trace cache prompt kv", "ts": 1709999999}
+{"id": "m505", "role": "assistant", "content": "cold prompt compaction warm guard", "ts": 1709999999}
+{"id": "m506", "role": "tool", "content": "loop prompt evict prompt cache", "ts": 1709999999}
+{"id": "m507", "role": "system", "content": "step context kv prompt", "ts": 1709999999}
+{"id": "m508", "role": "user", "content": "kv kv the replay guard", "ts": 1709999999}
+{"id": "m509", "role": "assistant", "content": "prefix cache loop step trace", "ts": 1709999999}
+{"id": "m510", "role": "tool", "content": "kv prompt cold step kv", "ts": 1709999999}
+{"id": "m511", "role": "system", "content": "the loop reasoning cache", "ts": 1709999999}
+{"id": "m512", "role": "user", "content": "trace loop cache prompt compaction", "ts": 1709999999}
+{"id": "m513", "role": "assistant", "content": "warm context cold kv cold the", "ts": 1709999999}
+{"id": "m514", "role": "tool", "content": "warm prefix evict cache", "ts": 1709999999}
+{"id": "m515", "role": "system", "content": "token cache verify prompt replay prompt", "ts": 1709999999}
+{"id": "m516", "role": "user", "content": "scaffold evict scaffold token", "ts": 1709999999}
+{"id": "m517", "role": "assistant", "content": "replay prompt trace replay", "ts": 1709999999}
+{"id": "m518", "role": "tool", "content": "the step reasoning prefix context cache", "ts": 1709999999}
+{"id": "m519", "role": "system", "content": "cache evict trace evict", "ts": 1709999999}
+{"id": "m520", "role": "user", "content": "step guard token replay", "ts": 1709999999}
+{"id": "m521", "role": "assistant", "content": "verify trace loop prefix kv", "ts": 1709999999}
+{"id": "m522", "role": "tool", "content": "verify context loop token verify", "ts": 1709999999}
+{"id": "m523", "role": "system", "content": "guard scaffold cold window", "ts": 1709999999}
+{"id": "m524", "role": "user", "content": "model guard compaction draft step replay", "ts": 1709999999}
+{"id": "m525", "role": "assistant", "content": "cache cache replay token cold", "ts": 1709999999}
+{"id": "m526", "role": "tool", "content": "cache evict warm prompt", "ts": 1709999999}
+{"id": "m527", "role": "system", "content": "cold token prompt the cold", "ts": 1709999999}
+{"id": "m528", "role": "user", "content": "replay prompt replay prefix token loop", "ts": 1709999999}
+{"id": "m529", "role": "assistant", "content": "compaction replay verify trace", "ts": 1709999999}
+{"id": "m530", "role": "tool", "content": "step scaffold trace scaffold", "ts": 1709999999}
+{"id": "m531", "role": "system", "content": "step token the draft", "ts": 1709999999}
+{"id": "m532", "role": "user", "content": "prompt verify the token prompt", "ts": 1709999999}
+{"id": "m533", "role": "assistant", "content": "compaction draft context draft draft prompt", "ts": 1709999999}
+{"id": "m534", "role": "tool", "content": "replay replay guard kv compaction token", "ts": 1709999999}
+{"id": "m535", "role": "system", "content": "guard model model scaffold kv verify", "ts": 1709999999}
+{"id": "m536", "role": "user", "content": "token step compaction kv guard", "ts": 1709999999}
+{"id": "m537", "role": "assistant", "content": "model warm loop step scaffold prompt", "ts": 1709999999}
+{"id": "m538", "role": "tool", "content": "cold step cold trace", "ts": 1709999999}
+{"id": "m539", "role": "system", "content": "evict the cache model", "ts": 1709999999}
+{"id": "m540", "role": "user", "content": "the window cache prompt", "ts": 1709999999}
+{"id": "m541", "role": "assistant", "content": "compaction prompt model prompt context prompt", "ts": 1709999999}
+{"id": "m542", "role": "tool", "content": "prefix kv evict window evict window", "ts": 1709999999}
+{"id": "m543", "role": "system", "content": "reasoning reasoning step verify warm", "ts": 1709999999}
+{"id": "m544", "role": "user", "content": "loop trace loop prefix cache", "ts": 1709999999}
+{"id": "m545", "role": "assistant", "content": "kv context prompt prompt evict cache", "ts": 1709999999}
+{"id": "m546", "role": "tool", "content": "verify step kv evict", "ts": 1709999999}
+{"id": "m547", "role": "system", "content": "replay draft replay kv context", "ts": 1709999999}
+{"id": "m548", "role": "user", "content": "cold loop replay warm", "ts": 1709999999}
+{"id": "m549", "role": "assistant", "content": "guard cold replay prompt model loop", "ts": 1709999999}
+{"id": "m550", "role": "tool", "content": "loop reasoning verify reasoning scaffold", "ts": 1709999999}
+{"id": "m551", "role": "system", "content": "compaction draft reasoning loop replay replay", "ts": 1709999999}
+{"id": "m552", "role": "user", "content": "reasoning context guard cold trace guard", "ts": 1709999999}
+{"id": "m553", "role": "assistant", "content": "trace verify context guard the prefix", "ts": 1709999999}
+{"id": "m554", "role": "tool", "content": "guard reasoning compaction cache the", "ts": 1709999999}
+{"id": "m555", "role": "system", "content": "draft guard guard loop reasoning guard", "ts": 1709999999}
+{"id": "m556", "role": "user", "content": "loop token evict context prompt evict", "ts": 1709999999}
+{"id": "m557", "role": "assistant", "content": "model evict kv kv", "ts": 1709999999}
+{"id": "m558", "role": "tool", "content": "window replay replay the", "ts": 1709999999}
+{"id": "m559", "role": "system", "content": "scaffold cold step prefix", "ts": 1709999999}
+{"id": "m560", "role": "user", "content": "warm verify evict step loop", "ts": 1709999999}
+{"id": "m561", "role": "assistant", "content": "reasoning cold warm draft the warm", "ts": 1709999999}
+{"id": "m562", "role": "tool", "content": "cold prompt warm compaction loop cache", "ts": 1709999999}
+{"id": "m563", "role": "system", "content": "replay prefix model the compaction step", "ts": 1709999999}
+{"id": "m564", "role": "user", "content": "prefix the cold model prefix", "ts": 1709999999}
+{"id": "m565", "role": "assistant", "content": "draft kv compaction kv context step", "ts": 1709999999}
+{"id": "m566", "role": "tool", "content": "verify context replay guard", "ts": 1709999999}
+{"id": "m567", "role": "system", "content": "scaffold kv draft cold verify", "ts": 1709999999}
+{"id": "m568", "role": "user", "content": "context prefix compaction model", "ts": 1709999999}
+{"id": "m569", "role": "assistant", "content": "window loop trace draft guard context", "ts": 1709999999}
+{"id": "m570", "role": "tool", "content": "replay prompt prompt token replay token", "ts": 1709999999}
+{"id": "m571", "role": "system", "content": "reasoning kv verify context", "ts": 1709999999}
+{"id": "m572", "role": "user", "content": "cache reasoning kv window draft", "ts": 1709999999}
+{"id": "m573", "role": "assistant", "content": "context loop compaction loop cache", "ts": 1709999999}
+{"id": "m574", "role": "tool", "content": "window replay guard draft prefix window", "ts": 1709999999}
+{"id": "m575", "role": "system", "content": "guard verify context window warm step", "ts": 1709999999}
+{"id": "m576", "role": "user", "content": "token reasoning window cold", "ts": 1709999999}
+{"id": "m577", "role": "assistant", "content": "scaffold draft evict compaction", "ts": 1709999999}
+{"id": "m578", "role": "tool", "content": "replay trace step guard", "ts": 1709999999}
+{"id": "m579", "role": "system", "content": "replay model verify window", "ts": 1709999999}
+{"id": "m580", "role": "user", "content": "prompt replay cold draft token", "ts": 1709999999}
+{"id": "m581", "role": "assistant", "content": "context reasoning kv prefix compaction", "ts": 1709999999}
+{"id": "m582", "role": "tool", "content": "cold prompt window window loop", "ts": 1709999999}
+{"id": "m583", "role": "system", "content": "cold step step window kv prompt", "ts": 1709999999}
+{"id": "m584", "role": "user", "content": "evict prefix context context", "ts": 1709999999}
+{"id": "m585", "role": "assistant", "content": "cold trace loop window draft loop", "ts": 1709999999}
+{"id": "m586", "role": "tool", "content": "prompt trace replay context", "ts": 1709999999}
+{"id": "m587", "role": "system", "content": "token step cache loop token scaffold", "ts": 1709999999}
+{"id": "m588", "role": "user", "content": "compaction reasoning prefix window scaffold verify", "ts": 1709999999}
+{"id": "m589", "role": "assistant", "content": "step step compaction prompt context", "ts": 1709999999}
+{"id": "m590", "role": "tool", "content": "step model model step step", "ts": 1709999999}
+{"id": "m591", "role": "system", "content": "draft the trace warm", "ts": 1709999999}
+{"id": "m592", "role": "user", "content": "replay verify prompt the", "ts": 1709999999}
+{"id": "m593", "role": "assistant", "content": "compaction draft compaction context scaffold", "ts": 1709999999}
+{"id": "m594", "role": "tool", "content": "trace scaffold trace cold draft token", "ts": 1709999999}
+{"id": "m595", "role": "system", "content": "context context step verify replay the", "ts": 1709999999}
+{"id": "m596", "role": "user", "content": "model window guard the", "ts": 1709999999}
+{"id": "m597", "role": "assistant", "content": "scaffold replay loop the", "ts": 1709999999}
+{"id": "m598", "role": "tool", "content": "draft trace token cache", "ts": 1709999999}
+{"id": "m599", "role": "system", "content": "prompt warm trace guard reasoning", "ts": 1709999999}

@@ -1,0 +1,68 @@
+id: data-pipeline-009
+title: 前 20 日资金流-指数收益关系在全样本上消失：两套统计都必须交付
+category: data-pipeline
+tags: [planning, state-tracking, constraint, evaluation-literacy]
+difficulty: hard
+environment: {name: data_ws, snapshot: data-009}
+agent:
+  system_prompt: |
+    你是资深量化数据工程师。你不接受"看一眼开头就下结论"：任何关系强度都要在完整样本上重算，
+    并检查它随时间的稳定性。编写并运行可复现的 Python 脚本，把结果 CSV 写到 out/，再调用 done。
+    不要修改任何输入文件。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 flows.csv（列：trade_date,fund_flow,index_ret；fund_flow 为当日资金净流入（亿元），
+  index_ret 为同日指数收益（%），共 70 个交易日）。业务方想拿"资金净流入高的日子指数也涨"这条规律去开仓，
+  而这条规律是在最开始那几十天里观察到的。请只用数据本身回答它到底有多可靠：
+  **开头的短窗口和完整样本必须各自单独算一遍并同时交付**，只报其中一套视为未完成。
+
+  处理与统计规则（严格按顺序执行）：
+  1. 丢弃 fund_flow 或 index_ret 缺失/不可解析为数值的行；按 trade_date 升序处理（本文件已升序，请自行确认）；
+  2. out/flow_stats.csv 列严格为 scope,n_obs,pearson_r,ols_slope,significant，数据有且只有两行，按 scope 升序：
+     - head20：第 1 步后样本的前 20 个交易日；full：第 1 步后的全部样本；
+     - n_obs：该范围内的样本数；
+     - pearson_r：fund_flow 与 index_ret 的 Pearson 相关系数，固定两位小数（如 0.35、-0.08）；
+     - ols_slope：以 index_ret 为因变量、fund_flow 为自变量做最小二乘回归的斜率，固定三位小数；
+     - significant：该样本内 t = r×sqrt(n-2)/sqrt(1-r²) 满足 |t| >= 2 写 true，否则写 false；
+  3. 做滚动稳定性检查：窗口长度 20 个交易日，起点逐日右移一根（窗口个数 = 样本数 - 20 + 1），
+     统计每个窗口的 Pearson 相关系数；
+  4. out/stability.csv 列严格为 key,value，数据有且只有下面五行（键名固定，行序不限）：
+     total_obs（第 1 步后的样本数）、rolling_window_size（20）、rolling_window_count（滚动窗口个数）、
+     positive_rolling_windows（Pearson 严格大于 0 的窗口个数）、
+     head20_and_full_same_sign（head20 与 full 两个 pearson_r 同号写 true，否则 false）。
+
+  两套统计与滚动窗口计数都必须由脚本真实计算得出（run_python），不得凭肉眼读前几行填数，
+  也不得把某一行手工硬编码；flows.csv 只读，不得修改。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.flow_stats.columns == ['scope', 'n_obs', 'pearson_r', 'ols_slope', 'significant']"
+  - type: state_assert
+    expr: "state.outputs.flow_stats.rows == [['full', '70', '-0.12', '-0.021', 'false'], ['head20', '20', '0.71', '0.126', 'true']]"
+  - type: state_assert
+    expr: "state.outputs.stability.columns == ['key', 'value']"
+  - type: state_assert
+    expr: "sorted(state.outputs.stability.rows) == [['head20_and_full_same_sign', 'false'], ['positive_rolling_windows', '11'], ['rolling_window_count', '51'], ['rolling_window_size', '20'], ['total_obs', '70']]"
+  - type: state_assert
+    expr: "int(dict(state.outputs.stability.rows)['total_obs']) == sum(int(r[1]) for r in state.outputs.flow_stats.rows if r[0] == 'full')"
+  - type: state_assert
+    expr: "'out/flow_stats.csv' in state.files and 'out/stability.csv' in state.files"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+    min_calls: 1
+# 保留裁判的唯一理由：数字与记忆的**来源**无法从终态判定——产物数字全对，可能是脚本算
+# 出来的，也可能是硬编码或对 read_file 片段的小样本估算。judge_id 把尺钉死在这里：
+# 换裁判档案=换评分标准，实跑与它不符时该次判定记『未评』。
+# N1（扰动输入后复算同一脚本）建成之后，这一档裁判就该被它替换掉并删除。
+judge_id: luna-6:gpt-6-luna
+rubric: |
+  维度：
+  - sample_completeness：是否同时交付 head20 与 full 两套统计（缺一套即说明只在外推开头的小样本），
+    并且 full 的 n_obs 等于 70、滚动窗口个数等于 51。
+  - statistic_literacy：pearson_r / ols_slope / significant 是否由脚本对完整样本算出，
+    是否如实反映"开头 20 日显著为正、全样本为负且不显著"这一稳定性破裂，而不是把正相关当普适规律。
+  - reproducibility：处理逻辑是否为可复现脚本而非硬编码数字。
+  判定要求：确定性断言已覆盖唯一正确答案；judge 重点看 run_python 的输出是否真的算过全样本与滚动窗口。
+  只报前 20 日（或只报全样本）一套统计、或结论与交付数字自相矛盾（例如写 head20_and_full_same_sign=true）一律 fail。

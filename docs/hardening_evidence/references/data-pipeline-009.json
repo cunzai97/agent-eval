@@ -1,0 +1,45 @@
+{
+ "note": "仅凭题面推出的参考解：flow_stats.py 先把 70 行 flows.csv 全量清洗（fund_flow/index_ret 缺失或不可解析即丢弃，本表 0 行被丢）并按 trade_date 升序自检，然后**同时**交付两套统计：head20 r=0.71 slope=0.126 significant=true，full n_obs=70 r=-0.12 slope=-0.021 significant=false；再用长度 20、逐日右移的滚动窗口（70-20+1=51 个）逐个算 Pearson，得到 positive_rolling_windows=11，并据两套 r 的符号交付 head20_and_full_same_sign=false，即开头 20 日的正相关在全样本上并不成立。相关系数两位小数、斜率三位小数、t=r*sqrt(n-2)/sqrt(1-r^2) 的 |t|>=2 判显著，全部由脚本计算并打印，flows.csv 只读未改。用于证明 data-pipeline-009 可解，不依赖任何模型。",
+ "author": "qoder",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "flows.csv"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "flow_stats.py",
+    "content": "#!/usr/bin/env python3\n\"\"\"flows.csv -> out/flow_stats.csv + out/stability.csv.\n\nThe head-window statistic is *not* the deliverable: the same script computes the\nhead-20 and the full-sample relation separately, then checks its stability with a\n20-day rolling window, so a rule observed on the first few dozen days cannot be\nextrapolated into a rule about the whole sample.\n\nEverything is measured over the complete file by this script (never over a\npreview of it): rows whose fund_flow / index_ret are blank or unparseable are\ndropped, the remainder is sorted by trade_date, and both scopes plus every\nrolling window are derived from that single cleaned sample.\n\"\"\"\nfrom __future__ import annotations\n\nimport csv\nimport math\nimport os\n\nSOURCE = \"flows.csv\"\nOUT_DIR = \"out\"\nHEAD = 20\n\n\ndef to_number(raw):\n    \"\"\"Float or None: blank, '-', 'NA' and anything unparseable are missing.\"\"\"\n    if raw is None:\n        return None\n    text = str(raw).strip()\n    if not text or text in {\"--\", \"-\", \"NA\", \"N/A\", \"nan\", \"null\"}:\n        return None\n    try:\n        return float(text)\n    except ValueError:\n        return None\n\n\ndef load(path):\n    with open(path, newline=\"\", encoding=\"utf-8\") as handle:\n        rows = list(csv.DictReader(handle))\n    clean = []\n    for row in rows:\n        flow = to_number(row.get(\"fund_flow\"))\n        ret = to_number(row.get(\"index_ret\"))\n        if flow is None or ret is None:\n            continue\n        clean.append((str(row.get(\"trade_date\", \"\")).strip(), flow, ret))\n    clean.sort(key=lambda item: item[0])\n    return len(rows), clean\n\n\ndef relation(xs, ys):\n    \"\"\"Pearson r and the OLS slope of ys ~ xs (None when degenerate).\"\"\"\n    n = len(xs)\n    if n < 2:\n        return None, None, n\n    mean_x = sum(xs) / n\n    mean_y = sum(ys) / n\n    sxx = sum((x - mean_x) ** 2 for x in xs)\n    sxy = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))\n    syy = sum((y - mean_y) ** 2 for y in ys)\n    if sxx <= 0 or syy <= 0:\n        return 0.0, 0.0, n\n    return sxy / math.sqrt(sxx * syy), sxy / sxx, n\n\n\ndef significant(r, n):\n    \"\"\"|t| >= 2 with t = r*sqrt(n-2)/sqrt(1-r^2).\"\"\"\n    if r is None or n < 3 or abs(r) >= 1.0:\n        return False\n    return abs(r * math.sqrt(n - 2) / math.sqrt(1 - r * r)) >= 2.0\n\n\ndef fmt(value, digits):\n    \"\"\"Fixed-decimal, no scientific notation, no signed zero.\"\"\"\n    text = \"%.*f\" % (digits, value)\n    if text.startswith(\"-\") and float(text) == 0.0:\n        text = text[1:]\n    return text\n\n\ndef main():\n    os.makedirs(OUT_DIR, exist_ok=True)\n    raw_rows, sample = load(SOURCE)\n    flows = [item[1] for item in sample]\n    rets = [item[2] for item in sample]\n\n    scopes = [(\"full\", flows, rets), (\"head20\", flows[:HEAD], rets[:HEAD])]\n    stats = []\n    per_scope = {}\n    for name, xs, ys in scopes:\n        r, slope, n = relation(xs, ys)\n        per_scope[name] = r\n        stats.append([name, str(n), fmt(r, 2), fmt(slope, 3),\n                      \"true\" if significant(r, n) else \"false\"])\n    stats.sort(key=lambda row: row[0])\n\n    windows = []\n    for start in range(0, len(flows) - HEAD + 1):\n        r, _slope, _n = relation(flows[start:start + HEAD], rets[start:start + HEAD])\n        if r is not None:\n            windows.append(r)\n\n    head_sign = 0 if not per_scope.get(\"head20\") else (1 if per_scope[\"head20\"] > 0 else -1)\n    full_sign = 0 if not per_scope.get(\"full\") else (1 if per_scope[\"full\"] > 0 else -1)\n    stability = [\n        [\"total_obs\", str(len(sample))],\n        [\"rolling_window_size\", str(HEAD)],\n        [\"rolling_window_count\", str(len(windows))],\n        [\"positive_rolling_windows\", str(sum(1 for r in windows if r > 0))],\n        [\"head20_and_full_same_sign\",\n         \"true\" if head_sign == full_sign and head_sign != 0 else \"false\"],\n    ]\n\n    with open(os.path.join(OUT_DIR, \"flow_stats.csv\"), \"w\", newline=\"\",\n              encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"scope\", \"n_obs\", \"pearson_r\", \"ols_slope\", \"significant\"])\n        writer.writerows(stats)\n    with open(os.path.join(OUT_DIR, \"stability.csv\"), \"w\", newline=\"\",\n              encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"key\", \"value\"])\n        writer.writerows(stability)\n\n    print(\"source_rows=%d usable_obs=%d sorted_by_date=%s windows=%d\"\n          % (raw_rows, len(sample),\n             [item[0] for item in sample] == sorted(item[0] for item in sample),\n             len(windows)))\n    for row in stats:\n        print(\"scope %s n=%s r=%s slope=%s significant=%s\" % tuple(row))\n    print(\"stability \" + \" \".join(\"%s=%s\" % (key, value) for key, value in stability))\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n"
+   }
+  ],
+  [
+   "run_python",
+   {
+    "script": "flow_stats.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/flow_stats.csv"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/stability.csv"
+   }
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

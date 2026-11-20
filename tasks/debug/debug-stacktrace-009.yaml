@@ -1,0 +1,44 @@
+id: debug-stacktrace-009
+title: 为 boardstore 完整注册新实体类型 run
+category: debug
+tags: [completeness, state-tracking, data-integrity, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-009}
+agent:
+  system_prompt: |
+    你是本地存储维护工程师。先用 run_tests 建立基线（确认改动前是多少条绿），再读 README 与源码确认所有登记点，
+    改完源码必须再用 run_tests 复跑验证；禁止修改 tests/，完成后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  boardstore 要新增第四种实体 run（字段 name / status / agent），与 issue、agent、squad 完全等价。
+  可见测试只跑已有三类实体的 happy path，所以它们现在全绿、改完也必须全绿；真正的故障是漏登记的
+  路径不报错，只会在 export→import→read 时静默把 run 丢掉。仓库 README.md 列出了全部登记点，
+  这些点彼此之间没有任何交叉校验，漏一处就是一次静默丢数据。
+
+  必须满足（公开接口 JsonStore、export_bundle/write_bundle/read_bundle/import_bundle、
+  daemon_state/board_state、render_card、cli 一律保持）：
+  - create/list/get/update/count/sequence/counts 对 run 生效，run 有独立集合文件与独立 id 序列；
+    未知 kind（如 ghost）仍必须抛 ValueError，不得改成宽松接受任意 kind；
+  - export→import→read 往返：run 记录逐字段保留（id/kind/name/status/agent），导入后新建 run 的
+    id 不得与导入的 id 冲突；issue/agent/squad 在同一个 bundle 里也必须原样往返，不得丢数据；
+  - daemon_state 的 counts 与 sequences、board_state 的列都必须包含 run；render_card 对 run 输出
+    含 name 与 status 的卡片，而不是 unsupported 占位；cli.KIND_CHOICES 与 USAGE 帮助文本同步登记 run；
+  - import_bundle 仍要跳过它不认识的 section，含未知 section 的 bundle 不得抛异常。
+
+  逐个登记点核对，不要只把 run 加进"主列表"就收工；不得修改 tests/，完成后 done。
+budget: {max_steps: 34, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 6 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "len(state.files_changed) >= 2"
+  - type: state_assert
+    expr: "'store/portable.py' in state.files_changed"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: tool_used
+    name: run_tests
+  - type: order_of
+    tools: [edit_file, run_tests]

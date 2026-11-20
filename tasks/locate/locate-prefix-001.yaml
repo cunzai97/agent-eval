@@ -1,0 +1,34 @@
+id: locate-prefix-001
+title: 上下文压缩后前缀缓存命中率腰斩的根因定位
+category: locate
+tags: [planning, audit, needle]
+difficulty: hard
+environment: {name: code_repo, snapshot: prefix_audit}
+agent:
+  system_prompt: |
+    你是资深工程师。先用复现测试定位失配点，再读两侧文件对比出根因；不要修改任何代码。
+    最终用 answer 提交任务要求的结构化证据，随后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  做完上下文压缩之后，前缀缓存命中率从接近满格直接掉了一半。prompts/ 里是压缩前后两份
+  消息序列，tests/test_repro.py 会暴露第一个失配的行。请定位：从哪一行开始失配、那一行
+  的角色、以及导致失配的真正原因。注意别把表面现象（比如"整段都不一样"）当成根因，
+  要追到把前缀打断的那一个具体变更。禁止改代码。
+
+  用 answer 提交单行 JSON，只能包含 diff_position、message_role、cause 三个键。
+  diff_position 是 1-indexed 行号；message_role 是该行的 role 字段值；cause 从
+  timestamp-in-summary、id-regeneration、role-order-flip 里选。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'diff_position': 401, 'message_role': 'user', 'cause': 'timestamp-in-summary'}"
+  - type: state_assert
+    expr: "state.test_runs >= 1 and len(state.files_read) >= 1"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer

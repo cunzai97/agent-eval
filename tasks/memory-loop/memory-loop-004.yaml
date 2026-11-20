@@ -1,0 +1,51 @@
+id: memory-loop-004
+title: 复用生产发布策略并主动沉淀已验证发布身份
+category: memory-loop
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: memory_shell_ws, snapshot: memory-release-004}
+agent:
+  system_prompt: |
+    你是发布负责人。遵循统一记忆闭环规范：任务开始时主动检索并核验相关持久记忆；把记忆视为待验证假设；
+    任务完成前必须闭合记忆，且一次任务只允许一次记忆变更：新验证的结论若是对已有条目的更正（旧记忆已被证据推翻），
+    用 memory_update 原位改写那一条，不得再另写一条与之并存的新条目；只有记忆里本来没有对应条目时才用 memory_write 新建；
+    除这一次变更外不得再记录其他记忆条目。完成闭环后再 done。
+    不得修改输入，必须用脚本生成并核对发布产物。
+  tools: [memory_search, list_files, read_file, write_file, run_bash, memory_write, memory_update, done]
+task_prompt: |
+  根据 release.json 与团队已批准的生产发布策略生成 out/rollout.csv。列严格为 stage,traffic_percent,
+  observe_minutes,rollback_condition，阶段从 1 开始；流量为整数百分比，回滚条件在每阶段完整重复。
+  回滚条件必须逐字复用已批准策略中的原文，不翻译或改写。同时在工作区根目录生成 release_note.md，
+  写明 service、version、target、artifact_sha256 和 database_migration。
+  使用脚本生成并核对结果，不得修改输入文件。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  # 回滚条件按“语义单元”逐字比对：种子记忆的三个分句以 ； 分隔，句末 。 属于整句而非
+  # 回滚条件本身，故只归一化实际值末尾的句末标点/空白；翻译、弱化、改写仍判失败。
+  - type: state_assert
+    expr: "state.csv.rollout.columns == ['stage', 'traffic_percent', 'observe_minutes', 'rollback_condition'] and [[r[0], r[1], r[2], r[3].rstrip('。.').strip()] for r in state.csv.rollout.rows] == [['1', '5', '15', '5xx_rate > 1% 或 p95_ms > 800 立即回滚'], ['2', '25', '15', '5xx_rate > 1% 或 p95_ms > 800 立即回滚'], ['3', '100', '15', '5xx_rate > 1% 或 p95_ms > 800 立即回滚']]"
+  - type: state_assert
+    expr: "'release_note.md' in state.files and len(state.modified) == 0"
+  - type: state_assert
+    expr: "any(item.get('origin') == 'agent' and all(text in item.content for text in ['checkout', 'v3.2.1', 'production', '8d73c33d9f5a', 'expand-only']) for item in state.memory.items)"
+  - type: state_assert
+    expr: "state.memory.metrics.search_calls >= 1 and state.memory.metrics.write_calls == 1 and state.memory.metrics.update_calls == 0"
+  - type: tool_used
+    name: memory_search
+  - type: tool_used
+    name: memory_write
+  - type: tool_used
+    name: run_bash
+  - type: order_of
+    tools: [memory_search, write_file, run_bash, memory_write, done]
+# 保留裁判的唯一理由：数字与记忆的**来源**无法从终态判定——产物数字全对，可能是脚本算
+# 出来的，也可能是硬编码或对 read_file 片段的小样本估算。judge_id 把尺钉死在这里：
+# 换裁判档案=换评分标准，实跑与它不符时该次判定记『未评』。
+# N1（扰动输入后复算同一脚本）建成之后，这一档裁判就该被它替换掉并删除。
+judge_id: luna-6:gpt-6-luna
+rubric: |
+  维度：
+  - policy_fidelity：产物是否忠实复用已批准生产策略，没有擅自翻译、弱化或改写回滚条件。
+  - identity_evidence：新记忆是否基于 release.json 与实际生成产物，准确记录本次发布身份和迁移策略。
+  - reuse_value：记忆是否既可供后续审计定位具体发布，又清楚标明策略来源，避免把脚本位置误当发布事实本身。
+  判定要求：三项均充分为 pass；产物正确但记忆信息略缺为 partial；发布身份错误、策略被改写或记忆无审计价值为 fail。

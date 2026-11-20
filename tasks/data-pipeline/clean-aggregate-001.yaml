@@ -1,0 +1,30 @@
+id: clean-aggregate-001
+title: 交易版本去重与月度净额（V2）
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: medium
+environment: {name: data_ws, snapshot: sales_dirty}
+agent:
+  system_prompt: |
+    你是资深数据工程师。先检查输入，编写并运行可复现的 Python 脚本生成结果；不得修改输入文件，完成后 done。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 sales_dirty.csv，输出 out/result.csv：
+  1. 按 transaction_id 去重，保留 updated_at 最晚版本；必须先去重再过滤；
+  2. 仅保留 status=completed、合法日期、amount 可解析且 >=0 的行；日期支持 YYYY-MM-DD 和 YYYY/MM/DD；
+  3. amount 去掉千分位逗号后解析；purchase 为正，refund 为负，其他 type 排除；
+  4. 按月份聚合 net_amount 与 transaction_count；net_amount 固定两位小数；
+  5. 列严格为 month,net_amount,transaction_count，按 month 升序。
+  将逻辑写入脚本并运行，禁止硬编码输出或修改输入。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.result.columns == ['month', 'net_amount', 'transaction_count']"
+  - type: state_assert
+    expr: "state.outputs.result.rows == [['2025-01', '1200.50', '2'], ['2025-02', '180.00', '2'], ['2025-03', '100.00', '1']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [write_file, run_python]

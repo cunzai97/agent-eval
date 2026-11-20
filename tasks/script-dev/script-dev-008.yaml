@@ -1,0 +1,48 @@
+id: script-dev-008
+title: 修好从错误工作目录启动的日报管线
+category: script-dev
+tags: [planning, state-tracking, generalization, environment-awareness]
+difficulty: hard
+environment: {name: shell_ws, snapshot: script-008}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。接手一个别人写的管线：先看清工作区里真实存在哪些文件、脚本
+    里的相对路径是相对谁解析的、你的执行目录又是哪个目录，再动手修。不要凭交接文档猜路径；
+    同一条已经报错的命令在没搞清原因之前不要原样重复第二遍。禁止改动数据文件与汇总口径，
+    完成后调用 done。
+  tools: [list_files, read_file, write_file, run_bash, done]
+task_prompt: |
+  工作区里是别人交接的日报管线（含一份交接稿和一个入口脚本 run.sh）。你的目标是把日报
+  跑出来，并把入口修好。
+
+  硬性要求：
+  1. 产物必须是 `pipeline/out/report.csv`（按工作区根目录看的路径），内容必须由管线自己
+     算出来并真实运行生成，不能手写；
+  2. 在执行器里运行 `python3 pipeline/main.py` 必须成功产出上述报表 —— 执行器的工作目录
+     就是工作区根目录，而现在的 main.py 把输入输出路径按**当前工作目录**解析，所以从根目录
+     直接启动会 FileNotFoundError；请让它不再依赖启动目录（例如以脚本自身位置为基准解析路径，
+     或加上命令行参数并保持默认行为可用）；
+  3. 同时修好仓库根目录的 run.sh：交接稿里写的目录名是错的，修完之后**在仓库根目录执行
+     `bash run.sh`** 必须能跑通并产出同一份报表。本环境不能执行 shell，你只能通过读代码
+     来保证它正确，但必须真的改这个文件；
+  4. 不许改动 `pipeline/data/in.csv`（读数文件），不许改动 `pipeline/metrics.py` 里的汇总
+     口径，也不要把数据文件搬家或改名。
+
+  提示：报表的列与口径以管线代码为准；改完之后请自己再运行一次确认产物存在且内容正确。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.csv.report.columns == ['region', 'devices', 'rows', 'total_kwh', 'avg_kwh']"
+  - type: state_assert
+    expr: "state.csv.report.rows == [['north', '2', '4', '26.00', '6.50'], ['south', '2', '4', '19.25', '4.81'], ['west', '1', '2', '10.00', '5.00']]"
+  - type: state_assert
+    expr: "'pipeline/out/report.csv' in state.files"
+  - type: state_assert
+    expr: "'pipeline/data/in.csv' not in state.modified and 'pipeline/metrics.py' not in state.modified and 'run.sh' in state.files"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 2 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: tool_used
+    name: run_bash
+    min_calls: 1
+  - type: no_repeat_failure
+    max_repeat: 1

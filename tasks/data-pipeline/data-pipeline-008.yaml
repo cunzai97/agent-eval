@@ -1,0 +1,71 @@
+id: data-pipeline-008
+title: 静默截断的 44 万字节日线：片段之外的行也必须进账的全量聚合
+category: data-pipeline
+tags: [planning, state-tracking, constraint, environment-awareness]
+difficulty: hard
+environment: {name: data_ws, snapshot: data-008}
+agent:
+  system_prompt: |
+    你是资深数据工程师。检查输入数据，编写并运行可复现的 Python 处理脚本，把结果 CSV 写到 out/，
+    再调用 done。所有规模类数字（行数、symbol 数、被丢弃的行数）都必须由脚本对整份输入文件计算得出，
+    不得把 read_file 返回的内容当成文件的全部。不要修改任何输入文件。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 daily_bars.csv（列：symbol,trade_date,close,volume,rev,turnover,market），
+  生成 out/market_bars.csv 与 out/reconciliation.csv。
+
+  这份文件有上万行、约 44 万字节，read_file 一次装不下它；任何统计口径都必须由脚本对整份文件算出，
+  包括输入行数本身，也包括"这份数据里到底有没有修订行、有多少脏值"这类分布判断——用脚本扫全量，
+  不要依据你看到的前若干行推断数据规模或分布。
+
+  清洗与汇总规则（严格按顺序执行）：
+  1. 按 (symbol, trade_date) 去重，只保留 rev 最大的那一行（rev 是修订计数，同一天的后一次修订覆盖前一次）；
+  2. 在第 1 步的结果上，丢弃 close 无法解析为数值的行（空值、`--`、`NA` 等一律丢弃；volume 全量可解析）；
+  3. 按 market 汇总：bars（该市场进入统计的行数）、avg_close（close 的算术平均）、
+     vwap_close（以 volume 加权的收盘均价，即 Σ(close×volume)/Σ(volume)）；
+     两个均价都写成固定两位小数（如 12.34，不足两位补零；不要科学计数法）；
+  4. out/market_bars.csv 列严格为 market,bars,avg_close,vwap_close，按 market 升序；
+  5. 对每个 (symbol, market) 组合，把该组合的 close 按 trade_date 升序排列后比较末值与首值：
+     末值 > 首值记为 rising，末值 < 首值记为 falling（注意：文件里的行不是按日期排好的，必须自己排序）；
+  6. out/reconciliation.csv 列严格为 key,value，数据有且只有下面七行（键名固定，行序不限）：
+     input_data_rows（daily_bars.csv 的数据行数，不含表头）、
+     revised_rows_dropped（第 1 步去掉的行数）、
+     invalid_close_rows_dropped（第 2 步去掉的行数）、
+     final_bars（进入统计的行数）、symbols（进入统计的 symbol 个数）、
+     rising_pairs、falling_pairs。
+
+  处理逻辑必须写成脚本再用 run_python 执行，不得把结果手工硬编码进 CSV；daily_bars.csv 只读，不得修改。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.market_bars.columns == ['market', 'bars', 'avg_close', 'vwap_close']"
+  - type: state_assert
+    expr: "state.outputs.market_bars.rows == [['SHE', '3244', '51.37', '51.47'], ['SHH', '3149', '51.00', '51.15'], ['SZA', '3132', '51.63', '52.00']]"
+  - type: state_assert
+    expr: "state.outputs.reconciliation.columns == ['key', 'value']"
+  - type: state_assert
+    expr: "sorted(state.outputs.reconciliation.rows) == [['falling_pairs', '63'], ['final_bars', '9525'], ['input_data_rows', '10043'], ['invalid_close_rows_dropped', '150'], ['revised_rows_dropped', '368'], ['rising_pairs', '75'], ['symbols', '46']]"
+  - type: state_assert
+    expr: "int(dict(state.outputs.reconciliation.rows)['final_bars']) == sum(int(r[1]) for r in state.outputs.market_bars.rows)"
+  - type: state_assert
+    expr: "'out/market_bars.csv' in state.files and 'out/reconciliation.csv' in state.files"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+    min_calls: 1
+# 保留裁判的唯一理由：数字与记忆的**来源**无法从终态判定——产物数字全对，可能是脚本算
+# 出来的，也可能是硬编码或对 read_file 片段的小样本估算。judge_id 把尺钉死在这里：
+# 换裁判档案=换评分标准，实跑与它不符时该次判定记『未评』。
+# N1（扰动输入后复算同一脚本）建成之后，这一档裁判就该被它替换掉并删除。
+judge_id: luna-6:gpt-6-luna
+rubric: |
+  维度：
+  - truncation_awareness：是否用脚本对整份文件计算规模类数字（input_data_rows=10043、
+    revised_rows_dropped=368、invalid_close_rows_dropped=150），而不是把 read_file 返回的前若干行
+    当成全量数据；只要产物数字与整份文件不符即判 fail。
+  - pipeline_correctness：去重（按最大 rev 覆盖）→ 丢弃非法 close → 分组汇总/首末对比的顺序是否正确，
+    是否自行按 trade_date 排序而不是信任文件行序。
+  - self_consistency：reconciliation 的 final_bars 是否等于 market_bars 三个 market 的 bars 之和。
+  判定要求：确定性断言已覆盖唯一正确答案；judge 重点看数字是否出自脚本对全量的计算（run_python 输出），
+  而不是对 read_file 片段的估算或硬编码。

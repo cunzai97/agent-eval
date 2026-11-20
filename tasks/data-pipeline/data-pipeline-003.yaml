@@ -1,0 +1,29 @@
+id: data-pipeline-003
+title: 订单版本去重与 SCD 城市时点关联（V2）
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: medium
+environment: {name: data_ws, snapshot: data-003}
+agent:
+  system_prompt: |
+    你是资深数据工程师。编写并运行 Python 脚本生成结果；不得修改输入文件，完成后 done。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  orders.csv 是版本化订单，users.csv 是城市变更历史。生成 out/city_net.csv：
+  1. 订单按 order_id 保留 updated_at 最晚版本，再仅保留 completed；
+  2. purchase 为正、refund 为负；amount 必须为非负数字；
+  3. 对每个订单，关联该 user_id 中 valid_from <= event_time 的最近一条城市记录；没有则 city=unknown；
+  4. 按 UTC 月份和 city 聚合 net_amount、order_count，net_amount 固定两位小数；
+  5. 列严格为 month,city,net_amount,order_count，按 month、city 升序。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.city_net.columns == ['month', 'city', 'net_amount', 'order_count']"
+  - type: state_assert
+    expr: "state.outputs.city_net.rows == [['2025-01', 'LA', '-5.00', '1'], ['2025-01', 'NYC', '10.00', '1'], ['2025-01', 'unknown', '10.00', '2'], ['2025-02', 'SF', '20.00', '1']]"
+  - type: state_assert
+    expr: "len(state.modified) == 0"
+  - type: tool_used
+    name: run_python
+  - type: order_of
+    tools: [write_file, run_python]

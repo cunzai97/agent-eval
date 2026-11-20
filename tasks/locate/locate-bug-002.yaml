@@ -1,0 +1,49 @@
+id: locate-bug-002
+title: 隔离同额订单的跨客户费用身份污染（V3）
+category: locate
+tags: [planning, state-tracking]
+difficulty: hard
+environment: {name: code_repo, snapshot: locate-002}
+agent:
+  system_prompt: |
+    你是资深故障定位工程师。先复现顺序相关故障，用搜索与阅读跨层追到首次构造错误身份的定义点，
+    并指名紧邻它、把错误结果原样传播下去的近邻符号；不要修改代码。用 answer 提交结构化证据后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  普通客户与 VIP 单独结算都正确；同一进程里先结算同金额普通订单，再结算 VIP 订单时，
+  第二单多收 20。调用链同时经过小计、优惠、服务费、税费和缓存身份构造，表面数值相同并不
+  代表业务身份相同。不要把门面调用者或传播错误的中间层当作根因；请定位首次丢失业务身份
+  维度的定义点。
+
+  decoy 不是可选项：请指名排除过程中那个“看起来正是根因”的近邻——直接调用上述定义点、
+  把错误结果原样缓存并传播下去、自身实现并不引入错误的那一层。入口门面函数以及不在费用
+  身份链路上的正确实现都不算 decoy。
+
+  必须运行完整测试，并用 grep 至少搜索两次（一次定位嫌疑符号的定义处，一次定位它的调用处），
+  至少阅读 4 个文件确认调用链，禁止修改代码。
+
+  用 answer 提交单行 JSON，只能包含 file、symbol、cause、decoy 四个键。
+  cause 从以下代码选择：omits-order-and-tier、applies-tax-before-fee、coupon-default-truthiness。
+  decoy 从以下符号名选择：order_final、service_fee、discounted、tax。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'file': 'billing/cache_key.py', 'symbol': 'fee_cache_key', 'cause': 'omits-order-and-tier', 'decoy': 'service_fee'}"
+  - type: state_assert
+    expr: "all(path in state.files_read for path in ['billing/cache_key.py', 'billing/fees.py'])"
+  - type: state_assert
+    expr: "state.grep_calls >= 1 and state.test_runs >= 1"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: grep
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

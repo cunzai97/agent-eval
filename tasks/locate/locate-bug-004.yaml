@@ -1,0 +1,49 @@
+id: locate-bug-004
+title: 穿透最近邻排序定位经度环绕根因（V3）
+category: locate
+tags: [planning]
+difficulty: hard
+environment: {name: code_repo, snapshot: locate-004}
+agent:
+  system_prompt: |
+    先复现并排除排序、坐标顺序、经度归一化等干扰项，再用搜索确认谁直接调用了缺陷定义点，
+    定位首次破坏球面经度语义的位置；不要修改代码。用 answer 提交结构化证据后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  普通坐标的最近邻结果正确；查询点位于东经 179° 时，西经 179° 的候选却输给东经 170°。
+  候选排序、坐标轴顺序、经度归一化、二维距离包装和经度环绕策略分别在不同模块中。
+  不要把门面调用者或传播错误的中间层当作根因；请定位首次把环绕经度当作线性轴处理的
+  定义点，禁止修改代码。
+
+  decoy 不是可选项：请指名排除过程中那个“看起来正是根因”的近邻——直接调用上述定义点、
+  把错误距离原样传播给上层、自身实现并不引入错误的那一层。入口排序函数与被调用的经度
+  归一化辅助函数都不算 decoy。
+
+  必须运行完整测试，并用 grep 至少搜索两次（一次定位嫌疑符号的定义处，一次定位它的调用处），
+  至少阅读 4 个文件确认调用链，禁止修改代码。
+
+  用 answer 提交单行 JSON，只能包含 file、symbol、cause、decoy 四个键。
+  cause 从以下代码选择：uses-linear-longitude-delta、swaps-latitude-longitude、unstable-tie-break。
+  decoy 从以下符号名选择：nearest、dist、longitude_distance、normalize_longitude。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'file': 'geo/longitude.py', 'symbol': 'wrapped_delta', 'cause': 'uses-linear-longitude-delta', 'decoy': 'longitude_distance'}"
+  - type: state_assert
+    expr: "all(path in state.files_read for path in ['geo/longitude.py', 'geo/dist.py'])"
+  - type: state_assert
+    expr: "state.grep_calls >= 1 and state.test_runs >= 1"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: grep
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

@@ -1,0 +1,29 @@
+id: fix-cancel-001
+title: 修复语义索引器取消竞态（协作式取消 + 队列排空 + 清脏可复用）
+category: fix-and-test
+tags: [planning, recovery, concurrency]
+difficulty: hard
+environment: {name: code_repo, snapshot: cancelidx}
+agent:
+  system_prompt: |
+    取消位只在 run 入口检查一次，中途 cancel 被忽略。先读 spec.md，修复 Indexer.run：
+    每次迭代前检查取消位（按迭代计数、非墙钟），取消后不再写输出、排空内部队列、清脏标志
+    使实例可复用。用 on_iter 回调确定性复现，不要改 tests/。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  indexers/indexers.py 的 Indexer.run 只在入口检查一次取消位，中途 cancel 会索引完所有 doc、
+  写满输出、队列不排空、实例变脏。请严格按 spec.md 修复：每次迭代前检查取消位（按迭代计数、
+  非墙钟），取消后立即停、不再写输出（output 停在取消前已完成项）、排空 pending、清 dirty
+  使实例可复用。只改 indexers/indexers.py，不要动 tests/ 与 spec.md，全绿后 done。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 4 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "any(str(p).startswith('indexers/') for p in state.files_changed)"
+  - type: tool_used
+    name: run_tests

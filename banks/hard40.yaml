@@ -1,0 +1,86 @@
+name: hard40
+description: 按历史整体通过率升序取前40题（含全部新开发未测难题）；历史零失败的题被排除。生成于 2026-10-10
+source: runs/_HISTORY.jsonl
+n_runs: 85
+tasks:
+  - fix-cancel-001
+  - script-loopguard-001
+  - memory-loop-004
+  - debug-stacktrace-008
+  - liberty-extract-001
+  - fix-failing-test-008
+  - locate-prefix-001
+  - locate-bug-001
+  - locate-leak-001
+  - crash-matrix-001
+  - memory-loop-001
+  - data-pipeline-009
+  - memory-loop-002
+  - debug-stacktrace-010
+  - fix-cap-001
+  - quant-policy-001
+  - fix-failing-test-003
+  - script-dev-007
+  - memory-loop-003
+  - fix-failing-test-002
+  - data-pipeline-006
+  - fix-failing-test-009
+  - debug-stacktrace-001
+  - debug-stacktrace-005
+  - data-pipeline-007
+  - script-dev-006
+  - script-dev-003
+  - script-dev-002
+  - fix-failing-test-007
+  - script-dev-005
+  - data-pipeline-008
+  - locate-bug-008
+  - memory-loop-005
+  - locate-bug-007
+  - fix-failing-test-004
+  - locate-bug-006
+  - fix-failing-test-005
+  - script-dev-008
+  - locate-bug-004
+  - debug-stacktrace-009
+detail:
+  fix-cancel-001: 0.0% (0/1)
+  script-loopguard-001: 0.0% (0/1)
+  memory-loop-004: 3.6% (2/55)
+  debug-stacktrace-008: 3.7% (2/54)
+  liberty-extract-001: 6.9% (4/58)
+  fix-failing-test-008: 11.1% (6/54)
+  locate-prefix-001: 33.3% (1/3)
+  locate-bug-001: 46.4% (26/56)
+  locate-leak-001: 50.0% (1/2)
+  crash-matrix-001: 50.0% (1/2)
+  memory-loop-001: 51.8% (29/56)
+  data-pipeline-009: 56.5% (13/23)
+  memory-loop-002: 65.5% (36/55)
+  debug-stacktrace-010: 66.7% (16/24)
+  fix-cap-001: 66.7% (2/3)
+  quant-policy-001: 66.7% (2/3)
+  fix-failing-test-003: 69.1% (38/55)
+  script-dev-007: 69.6% (16/23)
+  memory-loop-003: 71.4% (40/56)
+  fix-failing-test-002: 72.7% (40/55)
+  data-pipeline-006: 72.9% (43/59)
+  fix-failing-test-009: 73.9% (17/23)
+  debug-stacktrace-001: 74.5% (41/55)
+  debug-stacktrace-005: 74.5% (41/55)
+  data-pipeline-007: 76.0% (19/25)
+  script-dev-006: 76.8% (43/56)
+  script-dev-003: 78.6% (44/56)
+  script-dev-002: 78.9% (45/57)
+  fix-failing-test-007: 82.1% (46/56)
+  script-dev-005: 82.1% (46/56)
+  data-pipeline-008: 83.3% (20/24)
+  locate-bug-008: 83.3% (20/24)
+  memory-loop-005: 84.0% (21/25)
+  locate-bug-007: 85.2% (52/61)
+  fix-failing-test-004: 85.5% (47/55)
+  locate-bug-006: 85.7% (48/56)
+  fix-failing-test-005: 87.3% (48/55)
+  script-dev-008: 87.5% (21/24)
+  locate-bug-004: 87.7% (50/57)
+  debug-stacktrace-009: 88.0% (22/25)

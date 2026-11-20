@@ -1,0 +1,35 @@
+id: fix-failing-test-006
+title: 修复可靠重试的异常边界与退避序列
+category: fix-and-test
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-006}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。修复源码使全部测试通过。只能修改源码，禁止修改 tests/。
+    必须运行 run_tests 验证；全绿后调用 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  reliable/ 实现了同步操作的有限重试，但生产中发现两类问题：永久错误也被重试，
+  且退避时间与配置约定不一致。请根据公开 API、源码和测试修复完整语义：
+
+  - 只重试 TransientError，其他异常立即原样抛出；
+  - attempts 表示总尝试次数，耗尽后抛出最后一个异常，最后一次失败后不能再 sleep；
+  - 第一次重试等待 base_delay，之后指数翻倍，并受 max_delay 上限约束；
+  - 非法 attempts 必须拒绝，成功返回值不能改变。
+
+  可能不止一个源码文件有问题。不要针对具体测试值硬编码，也不要修改测试。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report['failed'] == 0 and state.test_report['errors'] == 0 and state.test_report['passed'] >= 7"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 12 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'reliable/retry.py' in state.files_changed and 'reliable/backoff.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests
+  - type: order_of
+    tools: [read_file, edit_file, run_tests]

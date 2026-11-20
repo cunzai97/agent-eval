@@ -1,0 +1,13 @@
+transaction_id,date,updated_at,store,type,status,amount
+t1,2025-01-05,2025-01-05T10:00:00Z,store_a,purchase,completed,"1,200.50"
+t1,2025-01-05,2025-01-05T11:00:00Z,store_a,purchase,completed,"1,250.50"
+t2,2025/01/20,2025-01-20T09:00:00Z,store_b,refund,completed,50
+t3,2025-01-22,2025-01-22T09:00:00Z,store_b,purchase,cancelled,999
+t4,2025-02-03,2025-02-03T09:00:00Z,store_a,purchase,completed,200
+t5,2025-02-18,2025-02-18T09:00:00Z,store_b,refund,completed,20
+t6,2025-02-19,2025-02-19T09:00:00Z,store_b,purchase,completed,bad
+t7,2025-03-07,2025-03-07T09:00:00Z,store_a,purchase,completed,80
+t7,2025-03-07,2025-03-07T10:00:00Z,store_a,purchase,completed,100
+t8,2025-03-08,2025-03-08T09:00:00Z,store_a,purchase,completed,-1
+t9,not-a-date,2025-03-09T09:00:00Z,store_a,purchase,completed,500
+t10,2025-04-01,2025-04-01T09:00:00Z,store_c,purchase,pending,700

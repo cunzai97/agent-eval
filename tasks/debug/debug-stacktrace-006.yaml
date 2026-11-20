@@ -1,0 +1,36 @@
+id: debug-stacktrace-006
+title: TTL 缓存提前过期与假值丢失
+category: debug
+tags: [planning, state-tracking, recovery]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-006}
+agent:
+  system_prompt: |
+    你是资深 Python 工程师。先运行测试复现，再沿调用链定位并修复根因。
+    禁止修改 tests/；必须 run_tests 全绿后再调用 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  feature flag 服务近期出现两个看似无关的现象：设置了 30 秒 TTL 的值在 1 秒后就被重新加载，
+  而合法的 False、0、空字符串又会被当成“没有缓存”。测试使用可控时钟稳定复现问题。
+
+  请检查 flags/ 到 cache/ 的调用链，修复 TTL 单位/边界和假值语义。过期项应删除，
+  loader 返回的任意值（包括 None）都应能缓存；不要修改公开接口或测试。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report['failed'] == 0 and state.test_report['errors'] == 0 and state.test_report['passed'] >= 8"
+  # post-run 隐藏测试：可见套件每种症状只钉一个例子，特判该例子即可全绿。
+  # evalkit/envs/hidden_tests/debug-006.py 用 TTL 单位与边界、逐项过期（不得清空整表）、
+  # 假值与 None 可缓存、过期后 get_or_load 必须重载、re-put 覆盖期限、FlagService 的
+  # per-key 与自定义 ttl 七条泛化契约重驱；实测参考解 7/7、可见全绿的捷径 5/7、noop 0/7。
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'cache/store.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests
+    min_calls: 2
+  - type: order_of
+    tools: [run_tests, edit_file, run_tests]

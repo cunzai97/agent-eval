@@ -1,0 +1,50 @@
+id: locate-bug-006
+title: 跨 checkout/pricing/fx 隔离报价身份污染（V3）
+category: locate
+tags: [planning, state-tracking]
+difficulty: hard
+environment: {name: code_repo, snapshot: locate-006}
+agent:
+  system_prompt: |
+    你是资深故障定位工程师。先复现顺序相关故障，用搜索确认谁直接调用了缺陷身份构造，
+    沿 checkout/pricing/fx 跨包调用链定位首次构造错误报价身份的定义点；不要修改代码。
+    用 answer 提交结构化证据后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  checkout 报价服务出现顺序相关故障：同一 SKU 先用 USD、再用 EUR 报价时，第二次沿用第一次
+  的数值；任一币种单独执行都正确。调用链跨越 checkout、pricing 与 fx，且折扣、税费、目录价、
+  缓存和转换后报价分别有自己的身份语义。不要把门面调用者或传播错误的中间层当作根因；
+  请定位首次丢失币种维度的定义点，禁止修改代码。
+
+  decoy 不是可选项：请指名排除过程中那个“看起来正是根因”的近邻——直接调用上述定义点、
+  把错误命中结果缓存并原样传播下去、自身实现并不引入错误的那一层。checkout 入口函数以及
+  本身正确的汇率、税费实现都不算 decoy。
+
+  必须运行完整测试，并用 grep 至少搜索两次（一次定位嫌疑符号的定义处，一次定位它的调用处），
+  至少阅读 5 个文件确认调用链，禁止修改代码。
+
+  用 answer 提交单行 JSON，只能包含 file、symbol、cause、decoy 四个键。
+  cause 从以下代码选择：omits-currency、converts-after-discount、country-rate-fallback。
+  decoy 从以下符号名选择：quote、unit_quote、cached_price、convert_usd、add_tax。
+budget: {max_steps: 32, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'file': 'pricing/quote_key.py', 'symbol': 'quote_key', 'cause': 'omits-currency', 'decoy': 'cached_price'}"
+  - type: state_assert
+    expr: "all(path in state.files_read for path in ['pricing/quote_key.py', 'pricing/cache.py'])"
+  - type: state_assert
+    expr: "state.grep_calls >= 1 and state.test_runs >= 1"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: grep
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer
+# rubric 已删除（2026-09-21 裁定：确定性的东西不需要裁判）。
+# 这份细则原本索要的东西，下面的确定性判据已经逐条覆盖：答案键、必读文件、测试与 grep
+# 证据、产物精确数值。实测它作为闸门的总贡献是 345 次判词里翻转 1 次，而那 1 次翻转考的
+# 是『读过几个文件』的宽度——§10.9 已裁定过程宽度不当能力代理。

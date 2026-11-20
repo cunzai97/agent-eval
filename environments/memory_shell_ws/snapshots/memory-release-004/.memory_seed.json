@@ -1,0 +1,13 @@
+{
+  "memories": [
+    {
+      "id": "mem-release-policy",
+      "key": "release:production-policy",
+      "content": "生产发布采用 5%、25%、100% 三阶段；每阶段观察 15 分钟；5xx_rate > 1% 或 p95_ms > 800 立即回滚。",
+      "tags": ["release", "production", "canary"],
+      "status": "active",
+      "version": 6,
+      "origin": "platform-approved"
+    }
+  ]
+}

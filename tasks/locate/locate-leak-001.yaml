@@ -1,0 +1,35 @@
+id: locate-leak-001
+title: 回测特征的未来数据泄漏审计（只定位不修复）
+category: locate
+tags: [audit, data-leak, planning]
+difficulty: hard
+environment: {name: code_repo, snapshot: leak_audit}
+agent:
+  system_prompt: |
+    你是资深量化工程师。先用复现测试坐实泄漏，再从特征表象跨层追到首次引入错误时间边界
+    语义的定义点；不要修改任何代码。最终用 answer 提交任务要求的结构化证据，随后 done。
+  tools: [list_files, read_file, grep, run_tests, answer, done]
+task_prompt: |
+  这套回测特征训练时收益虚高。已知的泄漏复现在 tests/test_repro.py：特征本应只依赖
+  当前及以前价格，但扰动 t 之后的价格会让截至 t 的特征跟着变。注意 labeler 用未来价格
+  定义训练目标——那是分类标签的定义本身，不算泄漏。请把根因定位到首次把"仅看过去"这一
+  时间边界翻译错误的那个定义点，不要停在调用它的特征函数，更不要误报标签器。
+
+  必须先运行复现测试确认泄漏，再用搜索、阅读确认从特征函数到窗口切片的调用链。禁止改代码。
+
+  用 answer 提交单行 JSON，且只能包含 file、symbol、cause 三个键。cause 从以下代码选择：
+  window-centered-future-leak、forward-label-horizon、missing-prefill-normalization。
+budget: {max_steps: 28, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.answer_json == {'file': 'trainsim/features.py', 'symbol': 'window', 'cause': 'window-centered-future-leak'}"
+  - type: state_assert
+    expr: "'trainsim/features.py' in state.files_read and state.test_runs >= 1 and (state.grep_calls >= 1 or len(state.files_read) >= 3)"
+  - type: state_assert
+    expr: "state.files_changed == []"
+  - type: tool_used
+    name: run_tests
+  - type: tool_used
+    name: read_file
+  - type: tool_used
+    name: answer

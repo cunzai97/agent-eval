@@ -1,0 +1,40 @@
+id: fix-dep-graph-001
+title: 修复语义化版本比较、约束选择与依赖安装排序
+category: fix-and-test
+tags: [planning, state-tracking, generalization, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: dep_graph}
+agent:
+  system_prompt: |
+    你是构建系统工程师。先运行测试复现，沿 version → resolve 调用链修复根因；
+    保持公开接口，禁止修改 tests/，改完复跑测试后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  修复 depkit/ 的两个模块，只用标准库。
+
+  1. version.parse(text)：接受 "MAJOR.MINOR.PATCH" 或带 "-prerelease" 后缀的形式，
+     返回 (major, minor, patch, pre)。pre 无后缀时为 None，有后缀时是点分段组成的 tuple[str, ...]。
+     缺段、非数字、空串、额外后缀等非法格式抛 ValueError；非字符串输入也抛 ValueError。
+  2. version.compare(a, b)：返回 -1 / 0 / 1。主次修订号按整数比较；带 prerelease 的版本低于同号正式版；
+     prerelease 各段按点分隔比较，纯数字段按数值比较（1.0.0-alpha.10 > 1.0.0-alpha.9），
+     纯数字段低于非数字段（1.0.0-1 < 1.0.0-alpha），前缀更短者更低（1.0.0-alpha < 1.0.0-alpha.1）。
+  3. version.satisfies(text, spec)：spec 形如 ">=1.2.0"、"<2.0.0"、"==1.2.3"、"!=1.4.0"，
+     允许操作符与版本号之间有空白；边界值算满足（>= 与 <= 包含相等）。未知操作符或缺操作符抛 ValueError。
+  4. resolve.pick(index, requirements)：index 为 {name: [版本字符串]}，requirements 为 {name: [spec]}。
+     每个包选出满足全部 spec 的最高版本；包不存在、候选为空或无版本满足时抛 ResolutionError；空 requirements 返回 {}。
+  5. resolve.install_order(deps)：deps 为 {name: [依赖名]}。返回安装顺序：依赖在前，
+     同层按名称升序保证确定性；未出现在 deps 键里的依赖名视为无依赖的叶子；出现环抛 ResolutionError，空图返回 []。
+
+  直接调用公开函数的边界行为也属于契约。保持函数签名，禁止修改测试。
+budget: {max_steps: 40, max_tokens: 64000, timeout_s: 720}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 11"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 25 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['depkit/version.py', 'depkit/resolve.py'])"
+  - type: order_of
+    tools: [edit_file, run_tests]

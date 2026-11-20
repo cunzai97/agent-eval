@@ -1,0 +1,164 @@
+{
+ "note": "仅凭题面与 README 登记点表推出的参考修复：把第四种实体 run 补进全部 10 个登记点——registry.KINDS/LABELS/COLLECTION_ORDER、db.COLLECTION_FILES（独立集合文件 runs.json，故 id 序列独立）、portable.BUNDLE_SECTIONS 与 IMPORT_SECTIONS（export→import→read 逐字段往返，未知 section 仍跳过）、state.COUNT_KINDS/GROUP_KINDS（daemon_state 的 counts/sequences 与 board_state 的列）、render.RENDERERS（run 卡片含 name 与 status）、cli.KIND_CHOICES 与 USAGE。不放宽 _doc 的未知 kind 守卫（ghost 仍抛 ValueError），不改 tests/。",
+ "author": "qoder",
+ "calls": [
+  [
+   "read_file",
+   {
+    "path": "README.md"
+   }
+  ],
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "store/registry.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "store/db.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "store/portable.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "store/state.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "store/render.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "store/cli.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "tests/test_store_kinds.py"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "grep",
+   {
+    "pattern": "issue\", \"agent\", \"squad"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/registry.py",
+    "old_text": "KINDS = [\"issue\", \"agent\", \"squad\"]",
+    "new_text": "KINDS = [\"issue\", \"agent\", \"squad\", \"run\"]"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/registry.py",
+    "old_text": "LABELS = {\n    \"issue\": \"Issues\",\n    \"agent\": \"Agents\",\n    \"squad\": \"Squads\",\n}",
+    "new_text": "LABELS = {\n    \"issue\": \"Issues\",\n    \"agent\": \"Agents\",\n    \"squad\": \"Squads\",\n    \"run\": \"Runs\",\n}"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/registry.py",
+    "old_text": "COLLECTION_ORDER = [\"issue\", \"agent\", \"squad\"]",
+    "new_text": "COLLECTION_ORDER = [\"issue\", \"agent\", \"squad\", \"run\"]"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/db.py",
+    "old_text": "    \"squad\": \"squads.json\",\n}",
+    "new_text": "    \"squad\": \"squads.json\",\n    \"run\": \"runs.json\",\n}"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/portable.py",
+    "old_text": "BUNDLE_SECTIONS = [\"issue\", \"agent\", \"squad\"]",
+    "new_text": "BUNDLE_SECTIONS = [\"issue\", \"agent\", \"squad\", \"run\"]"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/portable.py",
+    "old_text": "IMPORT_SECTIONS = [\"issue\", \"agent\", \"squad\"]",
+    "new_text": "IMPORT_SECTIONS = [\"issue\", \"agent\", \"squad\", \"run\"]"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/state.py",
+    "old_text": "COUNT_KINDS = [\"issue\", \"agent\", \"squad\"]",
+    "new_text": "COUNT_KINDS = [\"issue\", \"agent\", \"squad\", \"run\"]"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/state.py",
+    "old_text": "GROUP_KINDS = [\"issue\", \"agent\", \"squad\"]",
+    "new_text": "GROUP_KINDS = [\"issue\", \"agent\", \"squad\", \"run\"]"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/render.py",
+    "old_text": "    \"squad\": lambda item: f\"{item['id']} {item.get('name', '')} members={len(item.get('members', []))}\",\n}",
+    "new_text": "    \"squad\": lambda item: f\"{item['id']} {item.get('name', '')} members={len(item.get('members', []))}\",\n    \"run\": lambda item: f\"{item['id']} {item.get('name', '')} status={item.get('status', 'queued')} agent={item.get('agent', '')}\",\n}"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/cli.py",
+    "old_text": "KIND_CHOICES = [\"issue\", \"agent\", \"squad\"]",
+    "new_text": "KIND_CHOICES = [\"issue\", \"agent\", \"squad\", \"run\"]"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "store/cli.py",
+    "old_text": "kinds: issue, agent, squad",
+    "new_text": "kinds: issue, agent, squad, run"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

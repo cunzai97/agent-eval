@@ -1,0 +1,45 @@
+{
+ "note": "仅凭题面推出的参考解：report.py 只用标准库、只按规范算——先从面板重建去重升序的交易日 D1..Dn（行序不可信），D1..D3 空仓，建仓日 Dk 在 board=K 的标的中取 D(k-3)..D(k-1) 复利累计最高者（并列取 code 字典序最小），当日收益即其 Dk 的 ret_pct，逐日复利得 policy_return_pct；四个参照口径全部在同一个窗口 W=D4..Dn 上用期初等额、持有到期末的等权累计（Π(1+ret/100)-1）算：board=K 等权对照、全标的等权、全标的累计中位数（偶数取中间两值均值）、累计严格为正的占比；两个 excess 先按未取整原值相减再取两位小数，attribution 只在 policy-style_control>1.0 个百分点时给 selection。可见面板得 policy 18.87 / 对照 18.42 / 全市场 -6.26 / 中位数 -16.34 / 上涨占比 0.33 / excess 0.45 与 25.13 / sector，四组 held-out 面板（含并列、单日窗口、崩盘、乱序）也逐条复现 evalkit/envs/shell_hidden.py 的 EXPECTED，隐藏用例 4/4。returns.csv 与 README.md 未修改，产物由 run_bash 真跑生成并回读校验（returncode 才是真相）。用于证明 script-dev-007 可解，不依赖任何模型。",
+ "author": "qoder",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "README.md"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "returns.csv"
+   }
+  ],
+  [
+   "write_file",
+   {
+    "path": "report.py",
+    "content": "#!/usr/bin/env python3\n\"\"\"Benchmark script-dev-007 reference implementation: report.py.\n\n    python3 report.py --data returns.csv --out out/report.csv\n\nInput is a synthetic `date,code,board,ret_pct` panel of daily percentage\nreturns.  The panel is complete but its rows may arrive in any order, so the\ntrading calendar is rebuilt from the data instead of trusting file order.\n\nThe rule under test: no position on D1..D3; on every later day Dk pick the\nboard=K row with the best compounded return over D(k-3)..D(k-1) (ties broken by\nthe lexicographically smallest code), take that row's own ret_pct for Dk, and\ncompound those daily legs into `policy_return_pct`.\n\nThe point of the report is the comparison, so every reference is measured on the\n*same* window W = D4..Dn with the same buy-and-hold, no-rebalancing convention\n(equal weight; one row's cumulative return is Π(1+ret/100)-1):\n`style_control_return_pct` is the equal-weighted board=K basket -- the basket\nthat carries the very exposure the strategy is accused of -- while `market_*`\ndescribes the whole panel.  `attribution` credits selection skill only when the\npolicy beats its *style-matched* control by more than one percentage point;\notherwise the excess over the market mean is sector exposure, not skill.\n\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nimport csv\nimport os\n\n\ndef compound(returns):\n    \"\"\"Product of (1 + r/100) minus 1 for a list of percentage returns.\"\"\"\n    accrued = 1.0\n    for value in returns:\n        accrued *= 1.0 + value / 100.0\n    return accrued - 1.0\n\n\ndef mean(values):\n    return sum(values) / len(values) if values else 0.0\n\n\ndef median(values):\n    ordered = sorted(values)\n    if not ordered:\n        return 0.0\n    middle = len(ordered) // 2\n    if len(ordered) % 2:\n        return ordered[middle]\n    return (ordered[middle - 1] + ordered[middle]) / 2.0\n\n\ndef load_panel(path):\n    \"\"\"Return (dates asc, codes asc, {code: boards}, {(date, code): ret_pct}).\"\"\"\n    dates, boards, cells = set(), {}, {}\n    with open(path, newline=\"\", encoding=\"utf-8\") as handle:\n        for row in csv.DictReader(handle):\n            date = (row.get(\"date\") or \"\").strip()\n            code = (row.get(\"code\") or \"\").strip()\n            if not date or not code:\n                continue\n            try:\n                ret = float((row.get(\"ret_pct\") or \"\").strip())\n            except ValueError:\n                continue\n            dates.add(date)\n            boards.setdefault(code, set()).add((row.get(\"board\") or \"\").strip())\n            cells[(date, code)] = ret\n    return sorted(dates), sorted(boards), boards, cells\n\n\ndef build_report(path):\n    dates, codes, boards, cells = load_panel(path)\n    warmup = 3                                   # D1..D3 carry no position\n    universe = [code for code in codes if \"K\" in boards[code]]\n    window = dates[warmup:]\n\n    legs = []\n    for index in range(warmup, len(dates)):\n        lookback = dates[index - warmup:index]\n        day = dates[index]\n        best = None\n        for code in universe:\n            history = [cells.get((date, code)) for date in lookback]\n            if any(value is None for value in history):\n                continue                          # incomplete history cannot score\n            key = (-compound(history), code)       # best score, then smallest code\n            if best is None or key < best[0]:\n                best = (key, code, cells.get((day, code)))\n        if best is not None and best[2] is not None:\n            legs.append(best[2])\n\n    policy = compound(legs) * 100.0\n    if window:\n        totals = {code: compound([cells[(date, code)] for date in window\n                                  if (date, code) in cells]) * 100.0 for code in codes}\n    else:\n        totals = {code: 0.0 for code in codes}\n    style = mean([totals[code] for code in universe]) if universe else 0.0\n    market = mean([totals[code] for code in codes])\n    middle = median([totals[code] for code in codes])\n    up_fraction = (sum(1 for code in codes if totals[code] > 0) / len(codes)) if codes else 0.0\n\n    def pct(value):\n        text = \"%.2f\" % value\n        return text[1:] if text.startswith(\"-\") and float(text) == 0.0 else text\n\n    return [\n        [\"policy_return_pct\", pct(policy)],\n        [\"style_control_return_pct\", pct(style)],\n        [\"market_return_pct\", pct(market)],\n        [\"market_median_pct\", pct(middle)],\n        [\"market_up_fraction\", pct(up_fraction)],\n        [\"excess_vs_style_control_pct\", pct(policy - style)],\n        [\"excess_vs_market_pct\", pct(policy - market)],\n        [\"attribution\", \"selection\" if policy - style > 1.0 else \"sector\"],\n    ], len(dates), len(window), len(legs), len(codes), len(universe)\n\n\ndef main():\n    ap = argparse.ArgumentParser(description=\"panel report vs style-matched control\")\n    ap.add_argument(\"--data\", required=True, help=\"date,code,board,ret_pct panel\")\n    ap.add_argument(\"--out\", required=True, help=\"report CSV to write\")\n    args = ap.parse_args()\n\n    rows, days, held_days, legs, codes, universe = build_report(args.data)\n    parent = os.path.dirname(args.out)\n    if parent:\n        os.makedirs(parent, exist_ok=True)\n    with open(args.out, \"w\", newline=\"\", encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"metric\", \"value\"])\n        writer.writerows(rows)\n\n    print(\"panel days=%d held_days=%d names=%d board_K=%d legs=%d\"\n          % (days, held_days, codes, universe, legs))\n    for name, value in rows:\n        print(\"%s=%s\" % (name, value))\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n"
+   }
+  ],
+  [
+   "run_bash",
+   {
+    "cmd": "python3 report.py --data returns.csv --out out/report.csv"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "out/report.csv"
+   }
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

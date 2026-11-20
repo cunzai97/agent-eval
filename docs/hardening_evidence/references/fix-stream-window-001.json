@@ -1,0 +1,28 @@
+{
+  "note": "按题面修复完整链路：normalize 接受 Mapping、拒绝 bool/非有限数并用最后一条覆盖同 id；windows 使用排他 end 并按 (ts,id) 排序；aggregate 统计唯一 user。先跑可见测试复现，修改三个定义点后复跑。",
+  "calls": [
+    ["list_files", {}],
+    ["read_file", {"path": "streamflow/normalize.py"}],
+    ["read_file", {"path": "streamflow/windows.py"}],
+    ["read_file", {"path": "streamflow/aggregate.py"}],
+    ["read_file", {"path": "tests/test_visible.py"}],
+    ["run_tests", {}],
+    ["edit_file", {
+      "path": "streamflow/normalize.py",
+      "old_text": "\"\"\"Event validation and deterministic de-duplication.\"\"\"\nimport math\n\n\ndef _normalize(record):\n    if not isinstance(record, dict):\n        raise ValueError(\"event must be a mapping\")\n    missing = {\"id\", \"ts\", \"user\", \"value\"} - set(record)\n    if missing:\n        raise ValueError(f\"missing fields: {sorted(missing)}\")\n    event_id = record[\"id\"].strip() if isinstance(record[\"id\"], str) else \"\"\n    user = record[\"user\"].strip() if isinstance(record[\"user\"], str) else \"\"\n    if not event_id or not user:\n        raise ValueError(\"id and user must be non-empty strings\")\n    ts = record[\"ts\"]\n    if not isinstance(ts, int) or ts < 0:\n        raise ValueError(\"ts must be a non-negative integer\")\n    value = record[\"value\"]\n    if not isinstance(value, (int, float)):\n        raise ValueError(\"value must be numeric\")\n    return {\"id\": event_id, \"ts\": ts, \"user\": user, \"value\": float(value)}\n\n\ndef normalize_events(records):\n    \"\"\"Validate records; duplicate ids currently keep the first record.\"\"\"\n    by_id = {}\n    for record in records:\n        event = _normalize(record)\n        by_id.setdefault(event[\"id\"], event)\n    return sorted(by_id.values(), key=lambda event: (event[\"ts\"], event[\"id\"]))\n",
+      "new_text": "\"\"\"Event validation and deterministic de-duplication.\"\"\"\nimport math\nfrom collections.abc import Mapping\n\n\ndef _normalize(record):\n    if not isinstance(record, Mapping):\n        raise ValueError(\"event must be a mapping\")\n    missing = {\"id\", \"ts\", \"user\", \"value\"} - set(record)\n    if missing:\n        raise ValueError(f\"missing fields: {sorted(missing)}\")\n    event_id = record[\"id\"].strip() if isinstance(record[\"id\"], str) else \"\"\n    user = record[\"user\"].strip() if isinstance(record[\"user\"], str) else \"\"\n    if not event_id or not user:\n        raise ValueError(\"id and user must be non-empty strings\")\n    ts = record[\"ts\"]\n    if not isinstance(ts, int) or isinstance(ts, bool) or ts < 0:\n        raise ValueError(\"ts must be a non-negative integer\")\n    value = record[\"value\"]\n    if (not isinstance(value, (int, float)) or isinstance(value, bool)\n            or not math.isfinite(value)):\n        raise ValueError(\"value must be a finite number\")\n    return {\"id\": event_id, \"ts\": ts, \"user\": user, \"value\": float(value)}\n\n\ndef normalize_events(records):\n    \"\"\"Validate records; the last record for an id replaces earlier ones.\"\"\"\n    by_id = {}\n    for record in records:\n        event = _normalize(record)\n        by_id[event[\"id\"]] = event\n    return sorted(by_id.values(), key=lambda event: (event[\"ts\"], event[\"id\"]))\n"
+    }],
+    ["edit_file", {
+      "path": "streamflow/windows.py",
+      "old_text": "            \"end\": start + size - 1,\n            \"events\": sorted(grouped[start], key=lambda event: event[\"id\"]),",
+      "new_text": "            \"end\": start + size,\n            \"events\": sorted(grouped[start], key=lambda event: (event[\"ts\"], event[\"id\"])),"
+    }],
+    ["edit_file", {
+      "path": "streamflow/aggregate.py",
+      "old_text": "            \"users\": len([event[\"user\"] for event in events]),",
+      "new_text": "            \"users\": len({event[\"user\"] for event in events}),"
+    }],
+    ["run_tests", {}],
+    ["done", {}]
+  ]
+}

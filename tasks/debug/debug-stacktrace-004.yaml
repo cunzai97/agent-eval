@@ -1,0 +1,32 @@
+id: debug-stacktrace-004
+title: 修复状态规范化、有效分母与分组百分比（V2）
+category: debug
+tags: [planning, recovery, state-tracking]
+difficulty: hard
+environment: {name: code_repo, snapshot: debug-004}
+agent:
+  system_prompt: |
+    先运行测试复现静默错误，修复源码；禁止修改 tests/，全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  成功率报告不报错但同时存在字符串布尔、ignored 分母、百分比倍率和分组分母错误。
+  修复 rate/report 两层，保持输出结构和一位小数。
+  可见测试每种错误只钉了一个样例，照抄它不算修好：ok 只认真正的成功标记——布尔 True 与字符串
+  "true"（忽略大小写）为成功，"false"/"no"/"0"/"yes"/"1"/"on" 等其它字符串都不是成功，
+  0/""/None 也不是（非字符串且非布尔的值按 Python 真值判断，如 1 为成功）；
+  status == "ignored" 的行只移出分母，它们仍是数据行——某组若全是 ignored，该组必须出现在 groups
+  里且为 0.0，其它 status 与缺省 status 照常计入分母；overall 与每个分组各自用本组有效行数换算成
+  百分比（0.5 → 50.0，不是 0.5 也不是 5000），保留 overall/groups 结构与一位小数；
+  没有有效行时返回 0.0 而不是抛异常。
+budget: {max_steps: 34, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 8"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 33 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'agg/rate.py' in state.files_changed and 'agg/report.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

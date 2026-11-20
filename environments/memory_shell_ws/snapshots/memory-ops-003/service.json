@@ -1,0 +1,8 @@
+{
+  "service": "checkout",
+  "source_of_truth": true,
+  "timezone": "Asia/Shanghai",
+  "error_rate_threshold": 0.5,
+  "consecutive_minutes": 3,
+  "comparison": "strictly_greater"
+}

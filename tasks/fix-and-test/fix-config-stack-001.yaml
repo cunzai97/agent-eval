@@ -1,0 +1,41 @@
+id: fix-config-stack-001
+title: 修复分层配置合并、环境插值与装载校验
+category: fix-and-test
+tags: [planning, state-tracking, generalization, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: config_stack}
+agent:
+  system_prompt: |
+    你是配置系统工程师。先运行测试复现，沿 merge → interpolate → loader 修复完整链路；
+    保持公开接口，禁止修改 tests/，改完复跑测试后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  修复 configstack/ 的三个模块，只用标准库。
+
+  deep_merge(layers)：按层合并 string-key Mapping，非 Mapping 或非字符串键抛 TypeError。
+  后层 Mapping 与已有 Mapping 递归合并；其他值（含 list）整体替换。任一层中的 None 表示删除该键，
+  不存在则忽略。结果及嵌套容器不得修改或别名引用任何输入层。
+
+  resolve(value, env)：递归处理字符串、list、dict 的值，dict 键不插值，其他类型原样返回。
+  支持 ${NAME} 与 ${NAME:-default}，NAME=[A-Za-z_][A-Za-z0-9_]*；环境值转 str。${NAME} 缺失时
+  抛 KeyError(NAME)，存在但空字符串是合法空值；:-default 在变量缺失或为空时使用 default（可为空），
+  default 不递归展开。$${...} 去掉一个 $ 后作为字面量、不读环境；畸形或未闭合表达式保持原样。
+  default 不含 }，无需支持嵌套占位符。
+
+  load_config(layers, env)：依次 deep_merge、resolve，再规范化：name 必须 strip 后非空并保存 strip
+  结果；port 必须是 1..65535 的 int（bool 不算）；features 缺省 []，否则必须是非空字符串组成的
+  list，各项 strip 后非空，最终去重并按字典序排序。非法字段抛 ValueError，未知字段保留。
+
+  三个公开函数都会被直接做边界测试。保持函数签名，禁止修改测试。
+budget: {max_steps: 40, max_tokens: 64000, timeout_s: 720}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 12"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 25 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "all(p in state.files_changed for p in ['configstack/merge.py', 'configstack/interpolate.py', 'configstack/loader.py'])"
+  - type: order_of
+    tools: [edit_file, run_tests]

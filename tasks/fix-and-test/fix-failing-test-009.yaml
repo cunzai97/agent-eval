@@ -1,0 +1,50 @@
+id: fix-failing-test-009
+title: 补全审计归属迁移：每个调用点都要写入真实操作者
+category: fix-and-test
+tags: [partial-migration, state-tracking, security, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: fix-009}
+agent:
+  system_prompt: |
+    你是平台审计负责人。先用 run_tests 建立基线（确认改动前是多少条绿），再用 grep 逐个核对调用点，
+    改完源码必须再用 run_tests 复跑验证；禁止修改 tests/，禁止改测试期望来迁就实现，完成后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  审计链现在写不出真正的操作者了。README.md 里的契约是：`audit.log.log_activity(workspace,
+  entity_type, entity_id, action, details, actor=...)` 的 actor 必须是触发该动作的主体。接入真实
+  认证后只有部分调用点补上了 actor，其余调用点继续吃 `actor` 的默认值 "local-user"：不报错、不崩溃，
+  可见 smoke 测试（只覆盖 issue / agent 两条已迁移链路和 squad / run 的表结构）始终全绿，
+  但导出给合规的审计流水把所有人混成了一个本地用户，后台调度跑出来的 run 尤其明显。
+
+  必须做到（README.md 给出了入口点与迁移步骤，公开接口 Request/Principal/dispatch、
+  ScheduledJob/execute_job、tracker.* 与 audit.log 全部保持可用）：
+  - 四种实体 issue / agent / squad / run 的每一次 tracked mutation 都记录真实主体，
+    `grep log_activity` 的每个调用点都要核对，不能只看可见测试碰到的那几类；
+  - HTTP 路径：主体只存在于 handler 里（`request.actor()`），必须把它一路传到 tracker 的
+    log_activity；缺 actor 的 tracker 函数要把参数补进签名，同一次请求内产生的多条记录
+    （例如 start 之后紧跟的 progress）都属于这个主体；
+  - 调度路径：`execute_job` 没有 HTTP 请求，主体是 `job.requested_by`，必须经
+    `new_context` / `context_for` / `RunContext` 传到 run 的每一条记录——身份只在上下文对象里，
+    所以上下文与它的构造函数也属于待修的管道；
+  - 归属不得泄漏：连续两次请求、连续两个不同 owner 的调度任务，各自的事件必须记各自的主体，
+    不许用"记最后一次设置的全局当前用户"这类写法蒙过去；
+  - 未认证请求仍然抛 AuthenticationError 且不写任何审计行；不得为了省事把 actor 写死成某个
+    user id、把默认值改成看起来真实的值、或在事件里塞两个互相矛盾的字段。
+
+  禁止修改 tests/；改完用 run_tests 确认全绿，完成后 done。
+budget: {max_steps: 40, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 9"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 6 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "len(state.files_changed) >= 3"
+  - type: state_assert
+    expr: "'server/handlers.py' in state.files_changed"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: tool_used
+    name: run_tests
+  - type: order_of
+    tools: [edit_file, run_tests]

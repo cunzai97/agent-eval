@@ -1,0 +1,28 @@
+id: fix-threshold-001
+title: 追踪并修复压缩阈值在参数流中途被硬编码覆盖（静默失效）
+category: fix-and-test
+tags: [planning, recovery, constraint]
+difficulty: hard
+environment: {name: code_repo, snapshot: threshold}
+agent:
+  system_prompt: |
+    threshold 在参数流中途被一个硬编码默认值覆盖，导致命令行传多少都一样。先读 spec.md，
+    追踪 build_cli → run_pipeline → compress_document 的参数流，找到被覆盖的那一层并修复，
+    让 threshold 真正生效。禁止改 tests/。全绿后 done。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  compress/ 下 threshold 静默失效：`--threshold 0.2/0.5/0.8` 输出本应严格递减（0.2 保留最多、
+  0.8 最少），现在却因参数流中途被硬编码覆盖而完全相同。请追踪参数流定位覆盖点并修复，
+  使三档输出严格递减且两两不同。只改 compress/ 下的源码，不要动 tests/ 与 spec.md，全绿后 done。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 3 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "any(str(p).startswith('compress/') for p in state.files_changed)"
+  - type: tool_used
+    name: run_tests

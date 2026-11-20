@@ -1,0 +1,29 @@
+id: script-loopguard-001
+title: 实现工具循环检测状态机（repeat/3-of-5/升级记忆/误报边界）
+category: script-dev
+tags: [planning, state-machine, simulation]
+difficulty: hard
+environment: {name: code_repo, snapshot: loop_guard}
+agent:
+  system_prompt: |
+    按仓库根 spec.md 的契约实现 LoopDetector.feed。先读规格，再读可见测试，实现后跑测试；
+    规格里的误报边界与升级记忆是验收关键，不要只让可见测试变绿。禁止修改 tests/。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  loopguard/detector.py 目前是空壳（feed 抛 NotImplementedError）。请严格按 spec.md 实现
+  LoopDetector.feed(tool, h) -> ok/warn/block/pause：两个信号（连续重复 repeat、窗口高频
+  3-of-5 被打断）+ 升级记忆（信号可升级、ok 不退级、只有全新事件才清回 ok）+ 误报边界
+  （正常编辑循环必须全程 ok，连续读同一文件 2 次必须是 warn）。
+  只改 loopguard/detector.py，不要动 tests/ 与 spec.md。实现后运行测试确认全绿。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 2"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 8 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'loopguard/detector.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

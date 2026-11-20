@@ -1,0 +1,28 @@
+id: bubble-split-001
+title: UTF-8 多字节分页气泡切分（字节预算贪心，不切断字符，无缺口无重叠）
+category: script-dev
+tags: [planning, protocol, multibyte]
+difficulty: hard
+environment: {name: code_repo, snapshot: bubble}
+agent:
+  system_prompt: |
+    按 spec.md 实现 page/splitter.py 的 split：按 UTF-8 字节预算贪心切分，边界落在字符边界
+    （不切断多字节字符），拼接还原原文。旧 bug 是拿字符数当预算。先读规格与可见测试，
+    实现后跑测试。禁止改 tests/。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  page/splitter.py 目前是空壳（split 抛 NotImplementedError）。请严格按 spec.md 实现
+  split(text, max_bytes)：逐字符累加 UTF-8 字节数，达到 max_bytes 即切，边界落在字符边界，
+  贪心塞满，拼接所有气泡 == 原文。只改 page/splitter.py，不要动 tests/ 与 spec.md，实现后跑测试。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 5 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'page/splitter.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

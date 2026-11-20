@@ -1,0 +1,71 @@
+{
+ "note": "仅凭 task_prompt 推出的参考修复（三处，全部落在被点名的两个文件里）：1) server/scheduler.py 去掉 `if restored_position == 0` 的边界推断，对每个新 prompt 无条件、且只发一次 prompt_begin(seq, restored_position)，位置用绝对值，enqueue 全部在边界之后、prompt_finish 在全部 chunk 之后；2) speculative/worker.py 的 prompt_begin 去掉 `if pos_start != 0: return`，改为按 sequence 把上一次的残留队列 drain 到 drained_positions、清空 queued、置 prompt_absolute、写入 prompt_start、复位 verify_rows 与 failed——只动 self.states[seq]，不碰别的 slot；3) cancel 复位目标 sequence 的全部异步状态（队列、drained、verify_rows、failed、mode=idle），仍然只作用于 seq 自身。生成前已在临时副本上实测：可见 9 条全绿，17 条隐藏用例全绿，并对 6 份单点变异（跨 slot 清队列、每 chunk 一次边界、小于 50 的非零位置仍当冷启动、被接管队列重复记账、删掉 enqueue_prompt 的模式守卫、只写死 0/1 两个 slot）逐条复验为可见全绿+隐藏失败，见 docs/hardening_evidence/negative_controls/NC-debug-stacktrace-007-cross-slot-wipe.py。",
+ "author": "qoder-subagent",
+ "calls": [
+  [
+   "list_files",
+   {}
+  ],
+  [
+   "read_file",
+   {
+    "path": "tests/test_lifecycle.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "server/scheduler.py"
+   }
+  ],
+  [
+   "read_file",
+   {
+    "path": "speculative/worker.py"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "edit_file",
+   {
+    "path": "server/scheduler.py",
+    "old_text": "    def start_prompt(self, seq, restored_position, chunks):\n        # This worked for cold prompts, but checkpoint suffixes start non-zero.\n        if restored_position == 0:\n            self.worker.prompt_begin(seq, restored_position)\n        for chunk in chunks:",
+    "new_text": "    def start_prompt(self, seq, restored_position, chunks):\n        # Every new prompt is an explicit request boundary, cold or resumed\n        # from a non-zero checkpoint position.  The boundary is this call; it\n        # is never inferred from the position value.\n        self.worker.prompt_begin(seq, restored_position)\n        for chunk in chunks:"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "speculative/worker.py",
+    "old_text": "    def prompt_begin(self, seq, pos_start):\n        state = self.states[seq]\n        # Request boundaries were inferred from position zero.\n        if pos_start != 0:\n            return\n        state.mode = \"prompt_absolute\"\n        state.prompt_start = pos_start\n        state.verify_rows = 0",
+    "new_text": "    def prompt_begin(self, seq, pos_start):\n        state = self.states[seq]\n        # An explicit prompt_begin is the only request boundary, for any\n        # absolute start position.  Reset this sequence only -- another slot\n        # may be prompting or generating right now.  Drain stale queued jobs\n        # from the interrupted request before the buffers are reused, then\n        # clear the per-request progress and failure flags.\n        state.drained_positions.extend(state.queued_positions)\n        state.queued_positions.clear()\n        state.mode = \"prompt_absolute\"\n        state.prompt_start = pos_start\n        state.verify_rows = 0\n        state.failed = False"
+   }
+  ],
+  [
+   "edit_file",
+   {
+    "path": "speculative/worker.py",
+    "old_text": "    def cancel(self, seq):\n        state = self.states[seq]\n        state.queued_positions.clear()\n        state.mode = \"idle\"",
+    "new_text": "    def cancel(self, seq):\n        # Cancel is scoped to this sequence: discard its still-queued work and\n        # every per-request flag so the slot is reusable, leaving all other\n        # sequences untouched.\n        state = self.states[seq]\n        state.queued_positions.clear()\n        state.drained_positions.clear()\n        state.verify_rows = 0\n        state.failed = False\n        state.mode = \"idle\""
+   }
+  ],
+  [
+   "grep",
+   {
+    "pattern": "prompt_begin",
+    "path": "server"
+   }
+  ],
+  [
+   "run_tests",
+   {}
+  ],
+  [
+   "done",
+   {}
+  ]
+ ]
+}

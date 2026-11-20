@@ -1,0 +1,31 @@
+id: spec-decode-001
+title: 双缓冲投机解码流水线（无气泡调度 + 加速比核算）
+category: script-dev
+tags: [planning, scheduling, simulation]
+difficulty: hard
+environment: {name: code_repo, snapshot: spec_decode}
+agent:
+  system_prompt: |
+    按仓库根 spec.md 的契约实现 simulate。双缓冲流水线：verify 第 i 轮期间 draft 第 i+1 轮，
+    稳态吞吐 max(draft, verify)，加首尾启动/排空。先读规格与可见测试，实现后跑测试；
+    精确墙钟、无气泡不变量、加速比单调性是验收关键。禁止改 tests/。
+  tools: [list_files, read_file, grep, edit_file, run_tests, done]
+task_prompt: |
+  specdec/pipeline.py 目前是空壳（simulate 抛 NotImplementedError）。请严格按 spec.md 实现
+  simulate(draft_tps, target_tps, k, rounds, accepted_trace) -> {"wall_dual", "wall_serial",
+  "speedup", "generated_total"}：每轮草稿成本 d=k/draft_tps、校验成本 v=(k+1)/target_tps；
+  串行 wall=R*(d+v)；双缓冲 wall=d+(R-1)*max(d,v)+v（首轮启动 d + R-1 个重叠段 + 末轮排空 v，
+  无气泡）；speedup=wall_serial/wall_dual；generated_total=sum(a+1)。
+  只改 specdec/pipeline.py，不要动 tests/ 与 spec.md。实现后运行测试确认全绿。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.test_report.failed == 0 and state.test_report.errors == 0 and state.test_report.passed >= 1"
+  - type: state_assert
+    expr: "state.hidden_tests.applicable and state.hidden_tests.total >= 4 and state.hidden_tests.passed == state.hidden_tests.total"
+  - type: state_assert
+    expr: "all(not str(p).startswith('tests/') for p in state.files_changed)"
+  - type: state_assert
+    expr: "'specdec/pipeline.py' in state.files_changed"
+  - type: tool_used
+    name: run_tests

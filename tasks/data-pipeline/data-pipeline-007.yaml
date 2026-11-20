@@ -1,0 +1,70 @@
+id: data-pipeline-007
+title: 表头与 README 口径双撒谎：核对真实单位后的分部净结算聚合
+category: data-pipeline
+tags: [planning, state-tracking, constraint]
+difficulty: hard
+environment: {name: data_ws, snapshot: data-007}
+agent:
+  system_prompt: |
+    你是资深数据工程师。你不相信文档里写死的口径：字段单位与定义必须由数据自身交叉核对得出，
+    再把结论落到产物里。编写并运行可复现的 Python 脚本，结果写到 out/，输入文件只读，完成后 done。
+  tools: [list_files, read_file, write_file, run_python, done]
+task_prompt: |
+  处理 orders.csv，生成 out/branch_net.csv 与 out/meta.csv。
+
+  README.md 与表头把金额列都标成了 yuan，但这套标注**不必然可信**：交付的净额必须是真实单位（元）。
+  写处理脚本之前，先用 orders.csv / settlement.csv / catalog.csv 三者之间的内部一致性核对出两件事：
+  (a) amount_yuan、fee_yuan 两列的 1 个单位实际等于多少元（两列同一单位）；
+  (b) 可结算净额到底是 amount 本身，还是 amount 扣掉 fee 之后的余额。
+  核对手段自选，但结论必须可复现（例如逐单比对 qty × catalog 定价、逐单比对 settlement.csv
+  里的银行实收），并把结论写进 meta.csv。不要照抄 README 或表头里的单位。
+
+  清洗与汇总规则（严格按顺序执行）：
+  1. orders.csv 按 order_id 去重，只保留 revised_at 最晚的一行；
+  2. 只保留 status=completed；
+  3. 丢弃 qty < 1、amount_yuan 或 fee_yuan 缺失/不可解析、以及 amount_yuan < fee_yuan 的行；
+  4. 只保留能在 settlement.csv 中找到 order_id 的行（未到账不计入）；settlement.csv 里的多余订单忽略；
+  5. 每单净额（元）= (amount_yuan - fee_yuan) × 你在 (a) 中核对出的换算系数；
+  6. 按 branch 汇总 order_count（订单条数）与 net_yuan（净额合计，固定两位小数，如 1234.56）；
+  7. out/branch_net.csv 列严格为 branch,order_count,net_yuan，按 branch 升序。
+
+  out/meta.csv 列严格为 key,value，且只有下面三行数据（键名固定，value 按你的核对结果填）：
+  - amount_yuan_per_unit：金额列 1 个单位等于多少元，只能写 1 或 0.01；
+  - fee_deducted：净额是否等于 amount 减 fee，只能写 true 或 false；
+  - net_total_yuan：out/branch_net.csv 中 net_yuan 列之和，固定两位小数。
+
+  处理逻辑必须写成脚本再用 run_python 执行，不得把结果手工硬编码进 CSV；
+  orders.csv、settlement.csv、catalog.csv、README.md 一律只读，不得修改。
+budget: {max_steps: 30, max_tokens: 64000, timeout_s: 900}
+success:
+  - type: state_assert
+    expr: "state.outputs.branch_net.columns == ['branch', 'order_count', 'net_yuan']"
+  - type: state_assert
+    expr: "state.outputs.branch_net.rows == [['east', '8', '5078.47'], ['north', '6', '4213.00'], ['south', '6', '3664.34'], ['west', '5', '5228.59']]"
+  - type: state_assert
+    expr: "state.outputs.branch_net.row_count == 4"
+  - type: state_assert
+    expr: "state.outputs.meta.columns == ['key', 'value']"
+  - type: state_assert
+    expr: "sorted(state.outputs.meta.rows) == [['amount_yuan_per_unit', '0.01'], ['fee_deducted', 'true'], ['net_total_yuan', '18184.40']]"
+  - type: state_assert
+    expr: "state.modified == []"
+  - type: tool_used
+    name: run_python
+    min_calls: 1
+  - type: order_of
+    tools: [write_file, run_python, done]
+# 保留裁判的唯一理由：数字与记忆的**来源**无法从终态判定——产物数字全对，可能是脚本算
+# 出来的，也可能是硬编码或对 read_file 片段的小样本估算。judge_id 把尺钉死在这里：
+# 换裁判档案=换评分标准，实跑与它不符时该次判定记『未评』。
+# N1（扰动输入后复算同一脚本）建成之后，这一档裁判就该被它替换掉并删除。
+judge_id: luna-6:gpt-6-luna
+rubric: |
+  维度：
+  - metadata_defiance：是否用数据自身的对账（qty×catalog 定价、逐单银行实收）否定了 README/表头
+    声称的 yuan 单位，并否定了“服务费不参与结算”的说法；只照抄文档口径即判 fail。
+  - pipeline_correctness：去重→状态→数值合法性→到账 join 的顺序是否正确，
+    被修订覆盖的订单、缺到账的订单、非法数值行是否都被按规则处理。
+  - inspectable_reasoning：meta.csv 是否真实记录了核对出来的换算系数与净额口径，且与产物数字自洽。
+  判定要求：确定性断言已覆盖唯一正确答案；judge 重点看核对证据是否来自脚本输出而非文档。
+  数字与文档口径一致（未换算/未扣费）一律 fail。

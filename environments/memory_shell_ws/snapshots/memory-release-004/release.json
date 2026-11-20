@@ -1,0 +1,7 @@
+{
+  "service": "checkout",
+  "version": "v3.2.1",
+  "artifact_sha256": "8d73c33d9f5a",
+  "target": "production",
+  "database_migration": "expand-only"
+}
