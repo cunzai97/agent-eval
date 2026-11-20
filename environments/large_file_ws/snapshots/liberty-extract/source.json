@@ -1,5 +1,5 @@
 {
-  "path": "assets/liberty/sc9_cmos28lp_base_hvt_tt_nominal_max_1p10v_25c.lib",
+  "path": "assets/liberty/demo28lp_base_hvt_tt_nominal_max_1p00v_25c.lib",
   "max_head_lines": 120,
   "max_range_lines": 800,
   "max_matches": 40,

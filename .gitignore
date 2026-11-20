@@ -10,7 +10,7 @@ venv/
 .coverage
 
 # 大型第三方 PDK 资产：不入库，见 tools/fetch_liberty_asset.sh
-assets/liberty/*.lib
+assets/liberty/sc9_*.lib
 assets/liberty/*.bak
 assets/liberty/*.truncated-*
 

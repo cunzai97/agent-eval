@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 
 LIB = (Path(__file__).resolve().parents[1] / "assets/liberty"
-       / "sc9_cmos28lp_base_hvt_tt_nominal_max_1p10v_25c.lib")
+       / "demo28lp_base_hvt_tt_nominal_max_1p00v_25c.lib")
+CELLS = ("DFFQ_X1_D28", "INV_X1_D28", "NAND2_X1_D28")
 
 TOKEN = re.compile(r"""
       /\*.*?\*/          # block comment
@@ -151,7 +152,7 @@ def main():
     print(f"cell_count         = {len(cells)}")
     print(f"timing_group_count = {total_timing} (sum over cells)")
     print()
-    for name in ("DFFQ_X1M_A9TH", "INV_X1M_A9TH", "NAND2_X1M_A9TH"):
+    for name in CELLS:
         c = cells.get(name)
         if not c:
             print(f"{name}: ABSENT")

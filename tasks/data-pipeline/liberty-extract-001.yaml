@@ -1,5 +1,5 @@
 id: liberty-extract-001
-title: 解析 67MB 标准单元 Liberty 库并提取时序结构
+title: 解析 57MB 标准单元 Liberty 库并提取时序结构
 category: data-pipeline
 tags: [planning, state-tracking, constraint]
 difficulty: hard
@@ -10,7 +10,7 @@ agent:
   tools: [list_files, read_file, source_info, source_head, source_search, source_read_range, write_file, run_python, done]
 task_prompt: |
   项目内源文件（只读）：
-    assets/liberty/sc9_cmos28lp_base_hvt_tt_nominal_max_1p10v_25c.lib
+    assets/liberty/demo28lp_base_hvt_tt_nominal_max_1p00v_25c.lib
 
   先调用 source_info 识别文件规模，再用 source_head/source_search/source_read_range 做有界结构探查。
   禁止尝试全文预览；范围读取单次不得超过环境上限，脚本 stdout 只打印简短摘要。
@@ -27,11 +27,11 @@ task_prompt: |
   3. max_cell_rise 必须遍历该 cell 所有 cell_rise block 的多行 values 数值，固定六位小数。
 
   运行时 `--lib` 使用 source_info 返回的已解析绝对路径：
-    python3 extract_lib.py --lib '<source_info.path>' --cells INV_X1M_A9TH,NAND2_X1M_A9TH,DFFQ_X1M_A9TH --out-dir out
+    python3 extract_lib.py --lib '<source_info.path>' --cells DFFQ_X1_D28,INV_X1_D28,NAND2_X1_D28 --out-dir out
 
   禁止修改、复制、切片或重写源 PDK 文件；工作区生成文件总量不得超过 1MB，结果和脚本留在工作区。
 # 36 步 / 64k token 与 900s 在本地 27B 上不自洽：实跑（qwen3.8-27b@1235）15 步就把 900s
-# 花光，token 只用了 37,127/64,000——绑定约束是墙钟，不是能力预算。这题每一步都要在 66MB
+# 花光，token 只用了 37,127/64,000——绑定约束是墙钟，不是能力预算。这题每一步都要在 57MB
 # 源文件上流式检索，且长上下文下解码从 ~70 tok/s 掉到 ~17.8 tok/s。此题历史 0 条尝试，
 # 放宽 timeout 不移动任何已考过模型的 goalpost，只是让"跑不完"不再被记成"不会做"。
 # 第二次实跑（1800s 下）反过来证明真门槛是 token：qwen3.8 用 12 步 / 72,887 计数 token
@@ -42,11 +42,11 @@ task_prompt: |
 budget: {max_steps: 36, max_tokens: 64000, timeout_s: 1800}
 success:
   - type: state_assert
-    expr: "state.csv.library.columns == ['metric', 'value'] and state.csv.library.rows == [['library', 'sc9_cmos28lp_base_hvt_tt_nominal_max_1p10v_25c'], ['time_unit', '1ns'], ['nom_voltage', '1.1'], ['nom_temperature', '25'], ['cell_count', '1039'], ['timing_group_count', '13760']]"
+    expr: "state.csv.library.columns == ['metric', 'value'] and state.csv.library.rows == [['library', 'demo28lp_base_hvt_tt_nominal_max_1p00v_25c'], ['time_unit', '1ns'], ['nom_voltage', '1.0'], ['nom_temperature', '25.0'], ['cell_count', '1039'], ['timing_group_count', '13760']]"
   - type: state_assert
     expr: "state.csv.cells.columns == ['cell', 'area', 'input_pin_count', 'output_pin_count', 'timing_group_count', 'cell_rise_table_count', 'max_cell_rise']"
   - type: state_assert
-    expr: "state.csv.cells.rows == [['DFFQ_X1M_A9TH', '2.106', '2', '1', '5', '1', '0.383407'], ['INV_X1M_A9TH', '0.351', '1', '1', '1', '1', '0.411510'], ['NAND2_X1M_A9TH', '0.468', '2', '1', '2', '2', '0.412152']]"
+    expr: "state.csv.cells.rows == [['DFFQ_X1_D28', '2.436', '2', '1', '5', '1', '0.878128'], ['INV_X1_D28', '0.412', '1', '1', '1', '1', '0.886803'], ['NAND2_X1_D28', '0.588', '2', '1', '2', '2', '0.892365']]"
   - type: state_assert
     expr: "'extract_lib.py' in state.files and len(state.modified) == 0"
   - type: state_assert
