@@ -54,5 +54,5 @@ web_server.py + web/ 本地看板
 ## 仓库里没有什么
 
 - 本地评测记录（`runs/`）、运行日志（`logs/`）与真实的端点配置（`models.yaml`）不入库；公开只有 `models.example.yaml`。
-- `liberty-extract-001` 用的是一个**合成** Liberty 库（`assets/liberty/demo28lp_*.lib`，57MB、1039 个 cell、13760 个 timing group），内容全部由 `tools/gen_liberty_fake.py` 程序生成，不含任何厂商数据，`python3 tools/gen_liberty_fake.py` 可原样重建。
+- `liberty-extract-001` 用的是一个**合成** Liberty 库（`assets/liberty/demo28lp_*.lib`，45MB、1039 个 cell、13760 个 timing group，分布按真实库的统计特征对齐），内容全部由 `tools/gen_liberty_fake.py` 程序生成，不含任何厂商数据，`python3 tools/gen_liberty_fake.py` 可原样重建。
 - 任何第三方 PDK 库都不入库；`.gitignore` 已按文件名挡掉。

@@ -39,9 +39,12 @@ DRIVES = ["X0P5", "X0P7", "X1", "X1P4", "X2", "X3", "X4", "X6",
 
 # 题目点名要解析的三个 cell：结构固定，断言好写
 SPECIAL = {
-    "INV_X1_D28":   dict(area="0.412", inputs=1, outputs=1, timings=1, rise_blocks=1),
-    "NAND2_X1_D28": dict(area="0.588", inputs=2, outputs=1, timings=2, rise_blocks=2),
-    "DFFQ_X1_D28":  dict(area="2.436", inputs=2, outputs=1, timings=5, rise_blocks=1),
+    "INV_X1_D28":   dict(area="0.412", inputs=1, outputs=1, timings=1,
+                         kinds=["delay"]),
+    "NAND2_X1_D28": dict(area="0.588", inputs=2, outputs=1, timings=2,
+                         kinds=["delay", "delay"]),
+    "DFFQ_X1_D28":  dict(area="2.436", inputs=2, outputs=1, timings=5,
+                         kinds=["delay", "constraint", "constraint", "single", "constraint"]),
 }
 
 IDX1 = "0.001, 0.012, 0.023, 0.034, 0.045, 0.056, 0.067"
@@ -56,12 +59,19 @@ def rnd(*parts: str, lo: float = 0.0001, hi: float = 0.9, digits: int = 6) -> fl
     return round(lo + (hi - lo) * n, digits)
 
 
+def fmt_num(v: float) -> str:
+    """像真实库那样混用 3~7 位有效数字。"""
+    dec = 5 + int(v * 1e6) % 3          # 5~7 位小数
+    return f"{v:.{dec}f}"
+
+
 def table_block(name: str, cell: str, pin: str, idx: int, indent: str = "        ") -> list[str]:
     """一个 7x7 表：index_1 / index_2 / 多行 values（反斜杠续行）。"""
     out = [f'{indent}index_1 ("{IDX1}");', f'{indent}index_2 ("{IDX2}");', f"{indent}values ( \\"]
     rows = []
     for r in range(TABLE_N):
-        vals = ", ".join(f"{rnd(name, cell, pin, str(idx), str(r), str(c)):.6f}" for c in range(TABLE_N))
+        vals = ", ".join(fmt_num(rnd(name, cell, pin, str(idx), str(r), str(c)))
+                         for c in range(TABLE_N))
         rows.append(f'{indent}  "{vals}"')
     out.append(", \\\n".join(rows))
     out.append(f"{indent});")
@@ -90,27 +100,57 @@ def logic_expr(name: str, ins: list[str]) -> str:
     return f"({a} {b})"
 
 
+IN_HIST = [0]*9 + [1]*127 + [2]*186 + [3]*387 + [4]*184 + [5]*36 + [6]*37 + [7]*26 + [8]*16
+OUT_HIST = [0]*8 + [1]*930 + [2]*91 + [3]*10
+
+
+def pin_count(cell: str, which: str) -> int:
+    """input/output pin 数按真实库的直方图采样，且确定性。"""
+    hist = IN_HIST if which == "in" else OUT_HIST
+    h = hashlib.sha256(f"{SEED}|{which}|{cell}".encode()).digest()
+    n = hist[int.from_bytes(h[:4], "big") % len(hist)]
+    # 0 个 pin 的 cell 没法挂 timing，按 1 处理（真实库里这种不到 1%）
+    return n if n > 0 else 1
+
+
+def timing_kind(cell: str, idx: int) -> str:
+    """真实库里 7640 个 timing 是 4 表（delay）、4000 个 2 表（constraint）、2120 个 1 表。"""
+    h = hashlib.sha256(f"{SEED}|kind|{cell}|{idx}".encode()).digest()[0] % 100
+    if h < 56:
+        return "delay"
+    if h < 85:
+        return "constraint"
+    return "single"
+
+
 def cell_block(name: str, spec: dict) -> tuple[list[str], int]:
-    """写一个 cell：input pins → output pin（挂全部 timing）→ internal_power。"""
+    """写一个 cell：input pins（各带 power）→ 输出 pin（挂全部 timing）→ leakage。"""
     ins = [chr(ord("A") + i) for i in range(spec["inputs"])]
     is_seq = name.startswith(("DFF", "SDF", "LATCH"))
     if is_seq and spec["inputs"] >= 2:
         ins = ["D", "CK"]
-    outs = ["Q"] if is_seq else ["Z"]
+    outs = ["Q"] if is_seq else (["Z"] if spec["outputs"] <= 1
+                                 else [f"Z{i}" for i in range(spec["outputs"])])
 
     lines = [f"  cell ({name}) {{",
              f"    area : {spec['area']};",
              "    dont_touch : true;",
              "    pg_pin (VDD) {", "      pg_type : primary_power;", '      voltage_name : "VDD";', "    }",
              "    pg_pin (VSS) {", "      pg_type : primary_ground;", '      voltage_name : "VSS";', "    }"]
-    for p in ins:
-        lines += [f"    pin ({p}) {{",
+    for pin in ins:
+        lines += [f"    pin ({pin}) {{",
                   "      direction : input;",
-                  f"      capacitance : {rnd('cap', name, p):.6f};",
-                  f"      rise_capacitance : {rnd('rcap', name, p):.6f};",
-                  f"      fall_capacitance : {rnd('fcap', name, p):.6f};",
-                  f"      max_transition : {rnd('mt', name, p, lo=0.2, hi=4.0, digits=4):.4f};",
-                  "    }"]
+                  f"      capacitance : {rnd('cap', name, pin):.6f};",
+                  f"      rise_capacitance : {rnd('rcap', name, pin):.6f};",
+                  f"      fall_capacitance : {rnd('fcap', name, pin):.6f};",
+                  f"      max_transition : {rnd('mt', name, pin, lo=0.2, hi=4.0, digits=4):.4f};",
+                  "      internal_power () {",
+                  "        rise_power (power_template_7x7) {"]
+        lines += table_block("ipr", name, pin, 0, indent="          ")
+        lines += ["        }", "        fall_power (power_template_7x7) {"]
+        lines += table_block("ipf", name, pin, 0, indent="          ")
+        lines += ["        }", "      }", "    }"]
+
     out_pin = outs[0]
     lines += [f"    pin ({out_pin}) {{",
               "      direction : output;",
@@ -118,25 +158,32 @@ def cell_block(name: str, spec: dict) -> tuple[list[str], int]:
               f'      function : "{logic_expr(name, ins)}";']
     total = 0
     for i in range(spec["timings"]):
-        has_rise = i < spec["rise_blocks"]
+        kind = spec["kinds"][i] if spec.get("kinds") else timing_kind(name, i)
         related = ins[i % len(ins)]
         lines += ["      timing () {", f'        related_pin : "{related}";']
         if is_seq and i % 3 == 0:
             lines += ["        timing_type : setup_rising;"]
         else:
             lines += [f"        timing_sense : {'positive_unate' if i % 2 else 'negative_unate'};"]
-        tables = (["cell_rise", "cell_fall"] if has_rise else []) + [
-            "rise_transition", "fall_transition", "rise_constraint", "fall_constraint"]
-        for t in tables:
-            lines += [f"        {t} (delay_template_7x7) {{"] + table_block(t, name, out_pin, i) + ["        }"]
+        if kind == "delay":
+            tables = ["cell_rise", "cell_fall", "rise_transition", "fall_transition"]
+        elif kind == "constraint":
+            tables = ["rise_constraint", "fall_constraint"]
+        else:
+            tables = ["rise_transition"]
+        for tbl in tables:
+            lines += [f"        {tbl} (delay_template_7x7) {{"] + table_block(tbl, name, out_pin, i) + ["        }"]
         lines += ["      }"]
         total += 1
-    lines += ["      internal_power () {",
-              f"        rise_power (power_template_7x7) {{"]
+    lines += ["      internal_power () {", "        rise_power (power_template_7x7) {"]
     lines += table_block("rp", name, out_pin, 0, indent="          ")
-    lines += ["        }", f"        fall_power (power_template_7x7) {{"]
+    lines += ["        }", "        fall_power (power_template_7x7) {"]
     lines += table_block("fp", name, out_pin, 0, indent="          ")
     lines += ["        }", "      }", "    }"]
+    for extra in outs[1:]:
+        lines += [f"    pin ({extra}) {{", "      direction : output;",
+                  f"      max_capacitance : {rnd('mcap', name, extra, lo=0.05, hi=2.0, digits=4):.4f};",
+                  f'      function : "{logic_expr(name, ins)}";', "    }"]
     lines += ["    leakage_power () {",
               f"      value : {rnd('lk', name, lo=0.0001, hi=9.9, digits=4):.4f};", "    }", "  }"]
     return lines, total
@@ -156,21 +203,34 @@ def main() -> int:
         print(f"cell 名不够：需要 {args.cells}，只有 {len(names)}", file=sys.stderr)
         return 2
 
-    # timing 分配：点名 cell 用固定结构，其余按确定性抖动分，再把差额摊平，保证总数精确
+    # timing 数按真实库（1039 cell / 13760 timing）的直方图采样：
+    # 0:10 1:126 2:130 3:92 4:75 5:117 6:81 7:54 8:200 9:59 10:73 其余 11..156
+    HIST = ([0]*10 + [1]*126 + [2]*130 + [3]*92 + [4]*75 + [5]*117 + [6]*81
+            + [7, 8, 9, 10]*13 + [8, 9]                       # 7-10：54
+            + [12, 14, 16, 18, 20]*40                          # 11-20：200
+            + [22, 26, 30, 34, 38, 40]*10 + [24, 28]           # 21-40：59+
+            + [42, 50, 58, 66, 74, 80]*12 + [45]               # 41-80：73
+            + [82, 96, 110, 124, 138]*4 + [148, 156])          # >80：22
+
     special_in = {n: s for n, s in SPECIAL.items() if n in names}
     fixed = sum(s["timings"] for s in special_in.values())
-    others = [n for n in names if n not in SPECIAL]
-    per = {n: 1 + (hashlib.sha256((SEED + n).encode()).digest()[0] % 40) for n in others}
+    others = [n for n in names if n not in special_in]
+    pool = (HIST + [None] * max(0, len(others) - len(HIST)))[: len(others)]
+    import random as _random
+    _random.Random(SEED).shuffle(pool)
+    per = {}
+    for idx, n in enumerate(others):
+        v = pool[idx]
+        per[n] = v if v is not None else 11 + hashlib.sha256((SEED + n).encode()).digest()[0] % 146
+    # 把总数摊到总数可调的那部分，保证 timing_group_count 精确
     diff = (args.timings - fixed) - sum(per.values())
     i = 0
     while diff != 0:
         n = others[i % len(others)]
         if diff > 0:
-            per[n] += 1
-            diff -= 1
-        elif per[n] > 1:
-            per[n] -= 1
-            diff += 1
+            per[n] += 1; diff -= 1
+        elif per[n] > 0:
+            per[n] -= 1; diff += 1
         i += 1
     per.update({n: s["timings"] for n, s in special_in.items()})
 
@@ -218,11 +278,9 @@ def main() -> int:
             tcount = per[n]
             spec = SPECIAL.get(n)
             if spec is None:
-                spec = dict(area=f"{rnd('area', n, lo=0.2, hi=8.0, digits=3):.3f}",
-                            inputs=1 + hashlib.sha256((SEED + n).encode()).digest()[0] % 4,
-                            outputs=1,
-                            timings=tcount,
-                            rise_blocks=max(1, tcount // 2))
+                spec = dict(area=f"{0.351 + 14.625 * (rnd('area', n) / 0.9) ** 3.6:.3f}",
+                            inputs=pin_count(n, "in"), outputs=pin_count(n, "out"),
+                            timings=tcount)
             lines, written = cell_block(n, spec)
             total_timing += written
             f.write("\n".join(lines) + "\n")

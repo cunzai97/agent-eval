@@ -1,5 +1,5 @@
 id: liberty-extract-001
-title: 解析 57MB 标准单元 Liberty 库并提取时序结构
+title: 解析 45MB 标准单元 Liberty 库并提取时序结构
 category: data-pipeline
 tags: [planning, state-tracking, constraint]
 difficulty: hard
@@ -31,7 +31,7 @@ task_prompt: |
 
   禁止修改、复制、切片或重写源 PDK 文件；工作区生成文件总量不得超过 1MB，结果和脚本留在工作区。
 # 36 步 / 64k token 与 900s 在本地 27B 上不自洽：实跑（qwen3.8-27b@1235）15 步就把 900s
-# 花光，token 只用了 37,127/64,000——绑定约束是墙钟，不是能力预算。这题每一步都要在 57MB
+# 花光，token 只用了 37,127/64,000——绑定约束是墙钟，不是能力预算。这题每一步都要在 45MB
 # 源文件上流式检索，且长上下文下解码从 ~70 tok/s 掉到 ~17.8 tok/s。此题历史 0 条尝试，
 # 放宽 timeout 不移动任何已考过模型的 goalpost，只是让"跑不完"不再被记成"不会做"。
 # 第二次实跑（1800s 下）反过来证明真门槛是 token：qwen3.8 用 12 步 / 72,887 计数 token
@@ -46,7 +46,7 @@ success:
   - type: state_assert
     expr: "state.csv.cells.columns == ['cell', 'area', 'input_pin_count', 'output_pin_count', 'timing_group_count', 'cell_rise_table_count', 'max_cell_rise']"
   - type: state_assert
-    expr: "state.csv.cells.rows == [['DFFQ_X1_D28', '2.436', '2', '1', '5', '1', '0.878128'], ['INV_X1_D28', '0.412', '1', '1', '1', '1', '0.886803'], ['NAND2_X1_D28', '0.588', '2', '1', '2', '2', '0.892365']]"
+    expr: "state.csv.cells.rows == [['DFFQ_X1_D28', '2.436', '2', '1', '5', '1', '0.878128'], ['INV_X1_D28', '0.412', '1', '1', '1', '1', '0.886800'], ['NAND2_X1_D28', '0.588', '2', '1', '2', '2', '0.892360']]"
   - type: state_assert
     expr: "'extract_lib.py' in state.files and len(state.modified) == 0"
   - type: state_assert
